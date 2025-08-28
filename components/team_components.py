@@ -27,23 +27,14 @@ class TeamMemberForm:
             with row1_col2:
                 member_role = st.selectbox(
                     "역할 *",
-                    options=["프론트엔드 개발자", "백엔드 개발자", "풀스택 개발자", "UI/UX 디자이너", "기획자", "QA 엔지니어", "데이터 분석가", "프로젝트 매니저", "기타"],
+                    options=["기획", "클라이언트", "애니메이터", "프로젝트 매니저", "크리에이티브", "기타"],
                     index=None,
                     placeholder="역할을 선택하세요",
                     key="member_role"
                 )
             
-            row2_col1, row2_col2 = st.columns([1, 2])
-            with row2_col1:
-                member_hours = st.number_input(
-                    "일일 가용시간", 
-                    min_value=0.5, 
-                    max_value=24.0, 
-                    value=8.0, 
-                    step=0.5,
-                    key="member_hours",
-                    help="하루에 이 프로젝트에 투입 가능한 시간"
-                )
+            # 일일 가용시간 입력 제거 - 기본값 8.0시간으로 고정
+            member_hours = 8.0
             
             # 추가 버튼
             col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
