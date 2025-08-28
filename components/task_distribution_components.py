@@ -79,29 +79,21 @@ class TaskDistributionViewer:
     
     @staticmethod
     def render(result):
-        """분배 결과 4가지 타임라인 뷰"""
+        """분배 결과 2가지 타임라인 뷰"""
         st.markdown("---")
         st.header("📊 자동 분배 결과")
         
-        # 4가지 타임라인 뷰를 탭으로 구분
-        timeline_tab1, timeline_tab2, timeline_tab3, timeline_tab4 = st.tabs([
-            "🗓️ 전체 프로젝트 타임라인", 
-            "🚀 스프린트별 타임라인", 
-            "👥 팀원별 타임라인", 
-            "📋 항목별 타임라인"
+        # 2가지 타임라인 뷰를 탭으로 구분
+        timeline_tab1, timeline_tab2 = st.tabs([
+            "🚀 스프린트별 타임라인",
+            "🗓️ 전체 프로젝트 타임라인"
         ])
         
         with timeline_tab1:
-            TaskDistributionViewer._render_project_timeline(result)
-        
-        with timeline_tab2:
             TaskDistributionViewer._render_sprint_timeline(result)
         
-        with timeline_tab3:
-            TaskDistributionViewer._render_member_timeline(result)
-        
-        with timeline_tab4:
-            TaskDistributionViewer._render_task_timeline(result)
+        with timeline_tab2:
+            TaskDistributionViewer._render_project_timeline(result)
     
     @staticmethod
     def _render_project_timeline(result):
@@ -398,141 +390,6 @@ class TaskDistributionViewer:
             
             st.markdown("---")
     
-    @staticmethod
-    def _render_member_timeline(result):
-        """팀원별 타임라인"""
-        st.subheader("👥 팀원별 업무 타임라인")
-        st.markdown("각 팀원에게 할당된 업무의 시간적 분포")
-        
-        if not result.team_workloads:
-            st.warning("팀원별 워크로드 데이터가 없습니다.")
-            return
-        
-        # 팀원별 업무 데이터 준비
-        member_tasks = {}
-        for assignment in result.round_robin_assignments:
-            if assignment.start_date and assignment.end_date:
-                assignee = assignment.assignee_name
-                if assignee not in member_tasks:
-                    member_tasks[assignee] = []
-                
-                member_tasks[assignee].append({
-                    'Task': assignment.task_name,
-                    'Start': assignment.start_date,
-                    'Finish': assignment.end_date,
-                    'Sprint': assignment.sprint_name,
-                    'Priority': assignment.priority,
-                    'Hours': assignment.estimated_hours
-                })
-        
-        # 팀원별 타임라인 차트
-        for member_name, tasks in member_tasks.items():
-            st.markdown(f"#### 👤 {member_name}")
-            
-            fig = px.timeline(
-                tasks,
-                x_start='Start',
-                x_end='Finish',
-                y='Task',
-                color='Sprint',
-                title=f"{member_name}의 업무 타임라인",
-                hover_data=['Priority', 'Hours']
-            )
-            
-            fig.update_layout(
-                height=max(300, len(tasks) * 40 + 100),
-                xaxis_title="날짜",
-                yaxis_title="업무"
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # 팀원 요약 정보
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("할당 업무", f"{len(tasks)}개")
-            with col2:
-                total_hours = sum(task['Hours'] for task in tasks)
-                st.metric("총 시간", f"{total_hours:.1f}h")
-            with col3:
-                st.metric("예상 일수", f"{total_hours/8:.1f}일")
-    
-    @staticmethod
-    def _render_task_timeline(result):
-        """항목별 타임라인 (우선순위 기준)"""
-        st.subheader("📋 항목별 타임라인")
-        st.markdown("우선순위 순서대로 정렬된 업무 분배 현황")
-        
-        if not result.round_robin_assignments:
-            st.warning("분배된 업무가 없습니다.")
-            return
-        
-        # 우선순위별로 업무 정렬
-        sorted_assignments = sorted(result.round_robin_assignments, 
-                                  key=lambda x: (x.priority, x.task_name))
-        
-        # 업무별 데이터 준비
-        task_data = []
-        for assignment in sorted_assignments:
-            if assignment.start_date and assignment.end_date:
-                task_data.append({
-                    'Task': assignment.task_name,
-                    'Start': assignment.start_date,
-                    'Finish': assignment.end_date,
-                    'Assignee': assignment.assignee_name,
-                    'Sprint': assignment.sprint_name,
-                    'Priority': f"P{assignment.priority}",
-                    'Hours': assignment.estimated_hours
-                })
-        
-        if task_data:
-            # 우선순위별 색상 매핑
-            priority_colors = {
-                'P1': '#FF6B6B',  # 빨강 (최고 우선순위)
-                'P2': '#4ECDC4',  # 청록
-                'P3': '#45B7D1',  # 파랑
-                'P4': '#96CEB4',  # 초록
-                'P5': '#FECA57'   # 노랑
-            }
-            
-            fig = px.timeline(
-                task_data,
-                x_start='Start',
-                x_end='Finish',
-                y='Task',
-                color='Priority',
-                color_discrete_map=priority_colors,
-                title="📋 우선순위별 업무 타임라인",
-                hover_data=['Assignee', 'Sprint', 'Hours']
-            )
-            
-            fig.update_layout(
-                height=max(500, len(task_data) * 30 + 200),
-                xaxis_title="날짜",
-                yaxis_title="업무 (우선순위 순)",
-                showlegend=True
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # 우선순위별 통계
-            st.markdown("#### 📊 우선순위별 분배 현황")
-            priority_stats = {}
-            for task in task_data:
-                priority = task['Priority']
-                if priority not in priority_stats:
-                    priority_stats[priority] = {'count': 0, 'hours': 0}
-                priority_stats[priority]['count'] += 1
-                priority_stats[priority]['hours'] += task['Hours']
-            
-            cols = st.columns(len(priority_stats))
-            for i, (priority, stats) in enumerate(priority_stats.items()):
-                with cols[i]:
-                    st.metric(
-                        f"{priority} 업무",
-                        f"{stats['count']}개",
-                        delta=f"{stats['hours']:.1f}h"
-                    )
         
         # 분배 재실행 버튼
         st.markdown("---")
