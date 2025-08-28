@@ -49,7 +49,7 @@ class TaskForm:
             # 두 번째 행: 분류 정보
             col1, col2, col3 = st.columns(3)
             with col1:
-                attribute_options = ["기능 개발", "버그 수정", "리팩토링", "테스트", "문서화", "기타"]
+                attribute_options =["기능 개발", "버그 수정", "사양서작성", "영상제작", "기타"]
                 if is_edit_mode and task_data:
                     default_attribute_index = attribute_options.index(task_data['attribute']) if task_data['attribute'] in attribute_options else 0
                 else:
@@ -131,7 +131,7 @@ class TaskForm:
                     else:
                         build_type = selected_build
             with col3:
-                part_options = ["프론트엔드", "백엔드", "데이터베이스", "인프라", "기획", "디자인", "QA"]
+                part_options = ["기획", "클라이언트", "애니메이터", "프로젝트 매니저", "크리에이티브", "기타"]
                 if is_edit_mode and task_data:
                     default_part_index = part_options.index(task_data['part_division']) if task_data['part_division'] in part_options else 0
                 else:

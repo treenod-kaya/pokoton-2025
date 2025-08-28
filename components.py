@@ -336,7 +336,7 @@ def render_task_form():
         with col1:
             attribute = st.selectbox(
                 "속성", 
-                options=["기능 개발", "버그 수정", "리팩토링", "테스트", "문서화", "기타"],
+                options=["기능 개발", "버그 수정", "사양서작성", "영상제작", "기타"],
                 index=0, key="task_attribute"
             )
         with col2:
