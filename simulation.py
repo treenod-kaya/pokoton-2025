@@ -146,38 +146,16 @@ class RoundRobinSimulator:
         member_available_start_day = {}
         global_day_counter = 1  # 전체 프로젝트의 진행 일수
         
-        # 첫 번째 라운드에서 각 팀원의 첫 업무 시작일 설정
-        for i, member in enumerate(self.team_members):
-            if i == 0:
-                # 첫 번째 팀원: 1일차부터 시작
-                member_available_start_day[member['id']] = 1
-            else:
-                # 나머지 팀원들: 아직 시작하지 않음 (None으로 표시)
-                member_available_start_day[member['id']] = None
+        # 모든 팀원이 동시에 1일차부터 시작 (병렬 시작)
+        for member in self.team_members:
+            member_available_start_day[member['id']] = 1
         
         for task_idx, task in enumerate(sorted_tasks):
             # 현재 순서의 팀원 선택
             current_member = self.team_members[member_index % len(self.team_members)]
             task_hours = task['final_hours']
             
-            # 현재 팀원의 시작일 결정
-            if member_available_start_day[current_member['id']] is None:
-                # 아직 시작하지 않은 팀원: 이전 팀원의 첫 업무 완료 후 시작
-                prev_member_idx = (member_index - 1) % len(self.team_members)
-                prev_member = self.team_members[prev_member_idx]
-                
-                # 이전 팀원의 첫 업무 완료일 찾기
-                prev_first_assignment = next(
-                    (a for a in assignments if a.assignee_name == prev_member['name']), 
-                    None
-                )
-                
-                if prev_first_assignment:
-                    member_available_start_day[current_member['id']] = prev_first_assignment.end_day + 1
-                else:
-                    # 예외 상황: 전역 카운터 사용
-                    member_available_start_day[current_member['id']] = global_day_counter
-            
+            # 현재 팀원의 시작일 = 해당 팀원의 현재 가용 시작일
             start_day = member_available_start_day[current_member['id']]
             
             # 업무 완료에 필요한 일수 계산
