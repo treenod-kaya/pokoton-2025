@@ -236,7 +236,7 @@ def delete_sprint(sprint_id: int) -> bool:
     return True
 
 # 팀원 관련 함수들
-def add_team_member(project_id: int, name: str, role: str, available_hours_per_day: float) -> int:
+def add_team_member(project_id: int, name: str, role: str, available_hours_per_day: float, hire_date: str = None) -> int:
     """팀원 추가"""
     if not validate_team_member(name, role, available_hours_per_day):
         raise ValueError("유효하지 않은 팀원 정보입니다.")
@@ -246,9 +246,9 @@ def add_team_member(project_id: int, name: str, role: str, available_hours_per_d
     icon_index = get_random_icon_index()
     
     member_id = db.execute_query(
-        '''INSERT INTO team_members (project_id, name, role, available_hours_per_day, profile_icon_index)
-           VALUES (?, ?, ?, ?, ?)''',
-        (project_id, name.strip(), role.strip(), available_hours_per_day, icon_index),
+        '''INSERT INTO team_members (project_id, name, role, available_hours_per_day, profile_icon_index, hire_date)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (project_id, name.strip(), role.strip(), available_hours_per_day, icon_index, hire_date),
         fetch="lastrowid"
     )
     return member_id
@@ -256,7 +256,7 @@ def add_team_member(project_id: int, name: str, role: str, available_hours_per_d
 def get_team_members(project_id: int) -> List[Dict]:
     """프로젝트의 팀원 목록 조회"""
     rows = db.execute_query(
-        '''SELECT id, name, role, available_hours_per_day, profile_icon_index, created_at
+        '''SELECT id, name, role, available_hours_per_day, profile_icon_index, hire_date, created_at
            FROM team_members
            WHERE project_id = ?
            ORDER BY created_at''',
@@ -270,7 +270,8 @@ def get_team_members(project_id: int) -> List[Dict]:
         "role": row[2],
         "available_hours_per_day": row[3],
         "profile_icon_index": row[4] if len(row) > 4 else 0,  # 기본값 0
-        "created_at": row[5] if len(row) > 5 else row[4]  # 호환성 유지
+        "hire_date": row[5] if len(row) > 5 else None,  # 입사일
+        "created_at": row[6] if len(row) > 6 else row[4]  # 호환성 유지
     } for row in rows or []]
 
 def delete_team_member(member_id: int) -> bool:
