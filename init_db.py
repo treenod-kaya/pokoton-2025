@@ -97,15 +97,19 @@ def insert_sample_data():
             sample_members
         )
         
-        # 샘플 업무
+        # 샘플 업무 (H4: 13개 필드)
         sample_tasks = [
-            (project_id, "로그인 기능 개발", 3, 16.0),
-            (project_id, "메인 페이지 디자인", 2, 12.0),
-            (project_id, "사용자 요구사항 분석", 2, 8.0)
+            (project_id, "기능 개발", "Sprint 1.0", "백엔드", 4, "로그인 기능 개발", "사용자 인증 시스템 구축", "김개발", 8, 20.0, 16.0, 16.0, "복잡도 중간", "회원가입과 연관"),
+            (project_id, "기능 개발", "Sprint 1.0", "프론트엔드", 3, "메인 페이지 디자인", "랜딩 페이지 UI/UX 작업", "이디자인", 5, 15.0, 12.0, 12.0, "표준적인 작업", "네비게이션과 연관"),
+            (project_id, "문서화", "Sprint 1.0", "기획", 2, "사용자 요구사항 분석", "프로젝트 요구사항 정리", "박기획", 3, 10.0, 8.0, 8.0, "간단한 작업", "전체 기획과 연관")
         ]
         
         cursor.executemany(
-            "INSERT INTO tasks (project_id, name, difficulty, estimated_hours) VALUES (?, ?, ?, ?)",
+            '''INSERT INTO tasks (
+                project_id, attribute, build_type, part_division, priority, item_name, content,
+                assignee, story_points_leader, duration_leader, duration_assignee, final_hours,
+                ai_judgment, connectivity
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
             sample_tasks
         )
         

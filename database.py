@@ -222,9 +222,9 @@ def get_project_summary(project_id: int) -> Dict:
     )
     task_count = task_count_result[0] if task_count_result else 0
     
-    # 총 예상 시간
+    # 총 예상 시간 (H4: final_hours 컬럼 사용)
     total_hours_result = db.execute_query(
-        "SELECT SUM(estimated_hours) FROM tasks WHERE project_id = ?",
+        "SELECT SUM(final_hours) FROM tasks WHERE project_id = ?",
         (project_id,),
         fetch="one"
     )

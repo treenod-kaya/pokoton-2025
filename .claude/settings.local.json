@@ -3,7 +3,8 @@
     "allow": [
       "Bash(streamlit run app.py)",
       "Bash(python init_db.py --with-sample)",
-      "Bash(python init_db.py --drop-and-recreate)"
+      "Bash(python init_db.py --drop-and-recreate)",
+      "Bash(del pokoton.db)"
     ],
     "deny": [],
     "ask": []
