@@ -140,37 +140,59 @@ def delete_team_member(member_id: int) -> bool:
     )
     return True
 
-# 업무 관련 함수들
-def add_task(project_id: int, name: str, difficulty: int, estimated_hours: float) -> int:
-    """업무 추가"""
-    if not validate_task(name, difficulty, estimated_hours):
-        raise ValueError("유효하지 않은 업무 정보입니다.")
+# 업무 관련 함수들 (H4: 13개 필드 지원)
+def add_task(project_id: int, attribute: str = "", build_type: str = "", part_division: str = "",
+             priority: int = 3, item_name: str = "", content: str = "", assignee: str = "",
+             story_points_leader: int = 0, duration_leader: float = 0.0, duration_assignee: float = 0.0,
+             final_hours: float = 0.0, ai_judgment: str = "", connectivity: str = "") -> int:
+    """업무 추가 (H4: 13개 필드)"""
+    if not item_name.strip():
+        raise ValueError("업무명(항목)은 필수입니다.")
+    if not (1 <= priority <= 5):
+        raise ValueError("우선순위는 1~5 사이의 값이어야 합니다.")
     
     task_id = db.execute_query(
-        '''INSERT INTO tasks (project_id, name, difficulty, estimated_hours)
-           VALUES (?, ?, ?, ?)''',
-        (project_id, name.strip(), difficulty, estimated_hours),
+        '''INSERT INTO tasks (
+            project_id, attribute, build_type, part_division, priority, item_name, content, 
+            assignee, story_points_leader, duration_leader, duration_assignee, final_hours, 
+            ai_judgment, connectivity
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (project_id, attribute, build_type, part_division, priority, item_name.strip(), content,
+         assignee, story_points_leader, duration_leader, duration_assignee, final_hours,
+         ai_judgment, connectivity),
         fetch="lastrowid"
     )
     return task_id
 
 def get_tasks(project_id: int) -> List[Dict]:
-    """프로젝트의 업무 목록 조회"""
+    """프로젝트의 업무 목록 조회 (H4: 13개 필드)"""
     rows = db.execute_query(
-        '''SELECT id, name, difficulty, estimated_hours, created_at
+        '''SELECT id, attribute, build_type, part_division, priority, item_name, content,
+                  assignee, story_points_leader, duration_leader, duration_assignee, final_hours,
+                  ai_judgment, connectivity, created_at
            FROM tasks
            WHERE project_id = ?
-           ORDER BY created_at''',
+           ORDER BY priority, created_at''',
         (project_id,),
         fetch="all"
     )
     
     return [{
         "id": row[0],
-        "name": row[1],
-        "difficulty": row[2],
-        "estimated_hours": row[3],
-        "created_at": row[4]
+        "attribute": row[1],
+        "build_type": row[2],
+        "part_division": row[3],
+        "priority": row[4], 
+        "item_name": row[5],
+        "content": row[6],
+        "assignee": row[7],
+        "story_points_leader": row[8],
+        "duration_leader": row[9],
+        "duration_assignee": row[10],
+        "final_hours": row[11],
+        "ai_judgment": row[12],
+        "connectivity": row[13],
+        "created_at": row[14]
     } for row in rows or []]
 
 def delete_task(task_id: int) -> bool:

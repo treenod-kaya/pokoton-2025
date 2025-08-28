@@ -23,20 +23,30 @@ class TeamMember:
 
 @dataclass
 class Task:
-    """업무 데이터 모델"""
+    """업무 데이터 모델 (H4: 13개 필드)"""
     id: Optional[int] = None
     project_id: int = 0
-    name: str = ""
-    difficulty: int = 3  # 1~5
-    estimated_hours: float = 8.0
+    attribute: str = ""                    # 속성
+    build_type: str = ""                   # 적용 빌드
+    part_division: str = ""                # 파트 구분  
+    priority: int = 3                      # 우선순위 (1-5)
+    item_name: str = ""                    # 항목 (업무명)
+    content: str = ""                      # 내용
+    assignee: str = ""                     # 담당자
+    story_points_leader: int = 0           # 스토리 포인트(리더 입력)
+    duration_leader: float = 0.0           # 업무 예상 기간 (리더 입력)
+    duration_assignee: float = 0.0         # 업무 예상 기간(담당자 입력)
+    final_hours: float = 0.0               # 업무 예상 시간(최종)
+    ai_judgment: str = ""                  # AI 판단
+    connectivity: str = ""                 # 업무 연결성
     created_at: Optional[datetime] = None
     
     def __post_init__(self):
         """유효성 검증"""
-        if not (1 <= self.difficulty <= 5):
-            raise ValueError("난이도는 1~5 사이의 값이어야 합니다.")
-        if self.estimated_hours <= 0:
-            raise ValueError("예상 시간은 0보다 큰 값이어야 합니다.")
+        if not (1 <= self.priority <= 5):
+            raise ValueError("우선순위는 1~5 사이의 값이어야 합니다.")
+        if not self.item_name.strip():
+            raise ValueError("업무명(항목)은 필수입니다.")
 
 def validate_project_name(name: str) -> bool:
     """프로젝트명 유효성 검증"""

@@ -47,14 +47,24 @@ def create_tables():
     ''')
     print(">> team_members 테이블 생성 완룼")
     
-    # 업무 테이블
+    # 업무 테이블 (H4: 13개 필드로 확장)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            difficulty INTEGER NOT NULL CHECK (difficulty >= 1 AND difficulty <= 5),
-            estimated_hours REAL NOT NULL,
+            attribute TEXT DEFAULT '',                    -- 속성
+            build_type TEXT DEFAULT '',                   -- 적용 빌드
+            part_division TEXT DEFAULT '',                -- 파트 구분
+            priority INTEGER DEFAULT 3,                   -- 우선순위 (1-5)
+            item_name TEXT NOT NULL,                      -- 항목 (업무명)
+            content TEXT DEFAULT '',                      -- 내용
+            assignee TEXT DEFAULT '',                     -- 담당자
+            story_points_leader INTEGER DEFAULT 0,        -- 스토리 포인트(리더 입력)
+            duration_leader REAL DEFAULT 0.0,            -- 업무 예상 기간 (리더 입력)
+            duration_assignee REAL DEFAULT 0.0,          -- 업무 예상 기간(담당자 입력)
+            final_hours REAL DEFAULT 0.0,                -- 업무 예상 시간(최종)
+            ai_judgment TEXT DEFAULT '',                  -- AI 판단
+            connectivity TEXT DEFAULT '',                 -- 업무 연결성
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
         )

@@ -3,7 +3,8 @@
 import streamlit as st
 from components import (
     render_system_status, render_development_tools, 
-    render_progress_indicator, render_team_member_form, render_team_member_list
+    render_progress_indicator, render_team_member_form, render_team_member_list,
+    render_task_form, render_task_list
 )
 from database import get_project_by_id
 
@@ -67,7 +68,7 @@ def render_project_main_page():
     st.success("🎉 프로젝트가 선택되었습니다!")
     
     # 진행 상황 표시
-    render_progress_indicator("H2")
+    render_progress_indicator("H4")
     
     # 현재 프로젝트 정보
     project_info = get_project_by_id(st.session_state.current_project_id)
@@ -81,14 +82,20 @@ def render_project_main_page():
         with col3:
             st.metric("생성일", project_info['created_at'][:10] if project_info['created_at'] else "")
     
-    st.markdown("---")
+    # 탭으로 팀원 관리와 업무 관리 분리
+    tab1, tab2 = st.tabs(["👥 팀원 관리", "📋 업무 관리"])
     
-    # H2 단계: 팀원 관리
-    render_team_member_form()
+    with tab1:
+        # H3 단계: 팀원 관리
+        render_team_member_form()
+        st.markdown("---")
+        render_team_member_list()
     
-    st.markdown("---")
-    
-    render_team_member_list()
+    with tab2:
+        # H4 단계: 업무 관리
+        render_task_form()
+        st.markdown("---")
+        render_task_list()
     
     st.markdown("---")
     
