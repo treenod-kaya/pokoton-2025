@@ -448,10 +448,10 @@ class TaskDistributionViewer:
                     start_date = assignment.start_date
                     finish_date = assignment.end_date
                     
-                    if start_date == finish_date:
-                        # 1일 업무는 다음날까지로 표시하여 막대가 보이도록 함
-                        finish_datetime = datetime.strptime(finish_date, '%Y-%m-%d') + timedelta(days=1)
-                        finish_date = finish_datetime.strftime('%Y-%m-%d')
+                    # 모든 업무에 대해 종료일에 1일을 추가하여 정확한 기간 표시
+                    # (Plotly timeline에서는 종료일이 exclusive이므로)
+                    finish_datetime = datetime.strptime(finish_date, '%Y-%m-%d') + timedelta(days=1)
+                    finish_date = finish_datetime.strftime('%Y-%m-%d')
                     
                     task_data.append({
                         'Task': assignment.task_name,
@@ -491,33 +491,77 @@ class TaskDistributionViewer:
                     y='Task',
                     color='Assignee',
                     title=f"📊 {sprint_workload.sprint_name} 업무 타임라인",
-                    hover_data={'Priority': True, 'Hours': ':.1f'},
                     color_discrete_map=color_map
                 )
                 
-                # 호버 템플릿 커스터마이징 (실제 종료일 표시)
-                for i, trace in enumerate(fig.data):
-                    original_finish = task_data[i]['OriginalFinish']
-                    task_name = task_data[i]['Task']
-                    assignee = task_data[i]['Assignee']
-                    start_date = task_data[i]['Start']
-                    priority = task_data[i]['Priority']
-                    hours = task_data[i]['Hours']
-                    
-                    # 1일 업무인지 확인
-                    is_one_day = start_date == original_finish
-                    duration_text = "1일 업무" if is_one_day else f"{start_date} ~ {original_finish}"
-                    
+                # 각 trace(담당자별)에 맞는 호버 정보 설정
+                for trace in fig.data:
+                    assignee_name = trace.name  # trace.name이 담당자명
                     trace.hovertemplate = (
-                        f"<b>{task_name}</b><br>"
-                        f"👤 담당자: {assignee}<br>"
-                        f"📅 기간: {duration_text}<br>"
-                        f"⭐ 우선순위: P{priority}<br>"
-                        f"⏱️ 예상시간: {hours:.1f}h"
+                        "<b>%{y}</b><br>"
+                        f"👤 {assignee_name}"
                         "<extra></extra>"
                     )
                 
-                # 레이아웃 개선
+                # 주말/공휴일 배경 추가 (스프린트 전체 기간)
+                if task_data and sprint_workload.sprint_start_date and sprint_workload.sprint_end_date:
+                    # 스프린트 전체 기간으로 설정 (업무 범위가 아닌 스프린트 전체 범위)
+                    timeline_start = datetime.strptime(sprint_workload.sprint_start_date, '%Y-%m-%d').date()
+                    timeline_end = datetime.strptime(sprint_workload.sprint_end_date, '%Y-%m-%d').date()
+                    
+                    # 주말/공휴일 배경 및 날짜 라벨 추가
+                    current_date = timeline_start
+                    while current_date <= timeline_end:
+                        if KoreanHolidayCalendar.is_weekend(current_date) or KoreanHolidayCalendar.is_holiday(current_date):
+                            # 하루 전체를 회색 배경으로 표시
+                            next_date = current_date + timedelta(days=1)
+                            fig.add_shape(
+                                type="rect",
+                                x0=current_date.strftime('%Y-%m-%d'),
+                                x1=next_date.strftime('%Y-%m-%d'),
+                                y0=-1.0,  # 여유를 두어 더 넓게
+                                y1=len(task_data),  # 상단도 여유를 두어 더 넓게
+                                fillcolor='rgba(100,100,100,0.4)',  # 더 진한 회색, 높은 투명도
+                                opacity=0.4,
+                                layer="below",
+                                line_width=0
+                            )
+                            
+                            # 주말/공휴일 날짜를 빨간색으로 표시 (어노테이션 제거, tick 색상으로 처리)
+                        current_date += timedelta(days=1)
+
+                # 모든 날짜에 대한 커스텀 tick 설정 (스프린트 전체 기간)
+                if task_data and sprint_workload.sprint_start_date and sprint_workload.sprint_end_date:
+                    # 스프린트 전체 기간의 모든 날짜에 대해 tick 설정
+                    date_range = []
+                    tick_texts = []
+                    weekdays = ['월', '화', '수', '목', '금', '토', '일']
+                    
+                    # 스프린트 전체 기간 사용 (배경 shape와 동일한 범위)
+                    tick_timeline_start = datetime.strptime(sprint_workload.sprint_start_date, '%Y-%m-%d').date()
+                    tick_timeline_end = datetime.strptime(sprint_workload.sprint_end_date, '%Y-%m-%d').date()
+                    
+                    current_date = tick_timeline_start
+                    while current_date <= tick_timeline_end:
+                        date_range.append(current_date.strftime('%Y-%m-%d'))
+                        weekday_name = weekdays[current_date.weekday()]
+                        
+                        # 주말/공휴일이면 빨간색으로 스타일링
+                        if KoreanHolidayCalendar.is_weekend(current_date) or KoreanHolidayCalendar.is_holiday(current_date):
+                            if KoreanHolidayCalendar.is_holiday(current_date):
+                                holiday_name = KoreanHolidayCalendar.get_holiday_name(current_date)
+                                # 공휴일: 아이콘과 배경색 추가, bold 스타일
+                                tick_text = f"<span style='color:red; font-weight:bold; background-color:rgba(255,200,200,0.7); padding:2px 4px; border-radius:3px;'>🏮 {current_date.strftime('%m/%d')}<br>({holiday_name})</span>"
+                            else:
+                                # 주말: 빨간색 bold 스타일
+                                tick_text = f"<span style='color:red; font-weight:bold;'>{current_date.strftime('%m/%d')}<br>({weekday_name})</span>"
+                        else:
+                            tick_text = f"{current_date.strftime('%m/%d')}<br>({weekday_name})"
+                        
+                        tick_texts.append(tick_text)
+                        current_date += timedelta(days=1)
+
+                # 레이아웃 개선 (한국식 날짜 포맷)
                 fig.update_layout(
                     height=max(350, len(task_data) * 45 + 120),
                     xaxis_title="📅 날짜",
@@ -533,7 +577,17 @@ class TaskDistributionViewer:
                         x=1
                     ),
                     plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)'
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(
+                        tickmode='array',
+                        tickvals=date_range if task_data else [],
+                        ticktext=tick_texts if task_data else [],
+                        tickangle=-45,
+                        tickfont=dict(size=10),
+                        gridcolor='rgba(0,0,0,0.1)',
+                        # X축 범위를 스프린트 전체 기간으로 명시적 설정
+                        range=[sprint_workload.sprint_start_date, sprint_workload.sprint_end_date] if (sprint_workload.sprint_start_date and sprint_workload.sprint_end_date) else None
+                    )
                 )
                 
                 # 막대 스타일 개선

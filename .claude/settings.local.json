@@ -47,7 +47,15 @@
       "Bash(python -c \"\nfrom utils.icon_generator import ProfileIconGenerator\n\nprint(''=== 인덱스별 아이콘 타입 확인 ==='')\nfor i in range(6):\n    base64_data = ProfileIconGenerator.get_icon_base64(i, f''테스트{i}'')\n    \n    if ''image/png'' in base64_data or ''image/jpg'' in base64_data:\n        icon_type = ''로컬 이미지''\n    elif ''image/svg'' in base64_data:\n        icon_type = ''SVG 생성''\n    else:\n        icon_type = ''알 수 없음''\n    \n    print(f''인덱스 {i}: {icon_type}'')\n\")",
       "Bash(python -c \"\nfrom utils.icon_generator import ProfileIconGenerator\n\nprint(''=== 수정 후 인덱스별 아이콘 타입 확인 ==='')\nfor i in range(6):\n    base64_data = ProfileIconGenerator.get_icon_base64(i, f''테스트{i}'')\n    \n    if ''image/png'' in base64_data or ''image/jpg'' in base64_data:\n        icon_type = ''로컬 이미지''\n    elif ''image/svg'' in base64_data:\n        icon_type = ''SVG 생성''\n    else:\n        icon_type = ''알 수 없음''\n    \n    print(f''인덱스 {i}: {icon_type}'')\n\")",
       "Bash(python -c \"from components.task_distribution_components import TaskDistributionSimulator, TaskDistributionViewer\")",
-      "Bash(python -c \"from components import ProjectSelector, ProjectInfo\")"
+      "Bash(python -c \"from components import ProjectSelector, ProjectInfo\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")"
     ],
     "deny": [],
     "ask": []
