@@ -4,7 +4,7 @@ import streamlit as st
 from components import (
     SystemStatus, DevelopmentTools, ProgressIndicator,
     TeamMemberForm, TeamMemberList, TaskForm, TaskList,
-    SimulationRunner, SimulationResults, SimulationAnalysis,
+    SimulationRunner, SimulationResults, SimulationAnalysis, SimulationVisualization,
     SprintForm, SprintList, SprintTaskDistribution
 )
 from database import get_project_by_id
@@ -153,6 +153,8 @@ def render_project_main_page():
         SimulationResults.render()
         st.markdown("---")
         SprintTaskDistribution.render()
+        st.markdown("---")
+        SimulationVisualization.render()
         st.markdown("---")
         SimulationAnalysis.render()
     

@@ -2,6 +2,9 @@
 
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from simulation import run_simulation, get_simulation_summary
 from database import get_project_summary
 
@@ -236,3 +239,306 @@ class SimulationAnalysis:
         
         for rec in recommendations:
             st.markdown(rec)
+
+class SimulationVisualization:
+    """H6. 결과 시각화 컴포넌트"""
+    
+    @staticmethod
+    def render():
+        """시뮬레이션 결과 시각화"""
+        if 'simulation_result' not in st.session_state:
+            st.info("📊 시뮬레이션을 먼저 실행해주세요.")
+            return
+        
+        result = st.session_state.simulation_result
+        
+        st.header("📊 H6. 결과 시각화")
+        
+        # 탭으로 구분
+        viz_tab1, viz_tab2, viz_tab3 = st.tabs(["📊 팀원별 업무량", "📅 간트 차트", "⚖️ 불균형 지표"])
+        
+        with viz_tab1:
+            SimulationVisualization._render_workload_charts(result)
+        
+        with viz_tab2:
+            SimulationVisualization._render_gantt_chart(result)
+        
+        with viz_tab3:
+            SimulationVisualization._render_imbalance_indicators(result)
+    
+    @staticmethod
+    def _render_workload_charts(result):
+        """팀원별 업무량 Bar Chart"""
+        st.subheader("👥 팀원별 업무량 분석")
+        
+        # 데이터 준비
+        workload_data = []
+        for workload in result.team_workloads:
+            workload_data.append({
+                "팀원": workload.member_name,
+                "역할": workload.role,
+                "총할당시간": workload.total_assigned_hours,
+                "활용률": workload.utilization_rate,
+                "예상소요일": workload.estimated_days,
+                "일일가용시간": workload.daily_capacity
+            })
+        
+        if not workload_data:
+            st.warning("표시할 데이터가 없습니다.")
+            return
+        
+        df = pd.DataFrame(workload_data)
+        
+        # 1. 총 할당시간 Bar Chart
+        st.markdown("#### 📋 총 할당시간 비교")
+        fig1 = px.bar(
+            df, 
+            x="팀원", 
+            y="총할당시간",
+            color="역할",
+            title="팀원별 총 할당시간 (시간)",
+            labels={"총할당시간": "할당시간 (h)"},
+            text="총할당시간"
+        )
+        fig1.update_traces(texttemplate='%{text:.1f}h', textposition='outside')
+        fig1.update_layout(height=400)
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        # 2. 활용률 Bar Chart
+        st.markdown("#### 📈 팀원별 활용률")
+        fig2 = px.bar(
+            df,
+            x="팀원",
+            y="활용률", 
+            color="활용률",
+            color_continuous_scale=["green", "yellow", "red"],
+            title="팀원별 활용률 (%)",
+            labels={"활용률": "활용률 (%)"},
+            text="활용률"
+        )
+        fig2.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
+        fig2.add_hline(y=100, line_dash="dash", line_color="red", 
+                      annotation_text="100% 기준선")
+        fig2.update_layout(height=400)
+        st.plotly_chart(fig2, use_container_width=True)
+        
+        # 3. 할당시간 vs 가용시간 비교
+        st.markdown("#### ⚖️ 할당시간 vs 가용시간")
+        
+        # 전체 가용시간 계산 (일일가용시간 × 예상소요일)
+        df['전체가용시간'] = df['일일가용시간'] * df['예상소요일']
+        
+        fig3 = go.Figure()
+        fig3.add_trace(go.Bar(
+            name='할당시간',
+            x=df['팀원'],
+            y=df['총할당시간'],
+            marker_color='lightblue'
+        ))
+        fig3.add_trace(go.Bar(
+            name='가용시간',
+            x=df['팀원'],
+            y=df['전체가용시간'],
+            marker_color='lightgreen'
+        ))
+        
+        fig3.update_layout(
+            title="할당시간 vs 전체 가용시간 비교",
+            xaxis_title="팀원",
+            yaxis_title="시간 (h)",
+            barmode='group',
+            height=400
+        )
+        st.plotly_chart(fig3, use_container_width=True)
+    
+    @staticmethod
+    def _render_gantt_chart(result):
+        """간트 차트 시각화"""
+        st.subheader("📅 프로젝트 간트 차트")
+        
+        if not result.round_robin_assignments:
+            st.warning("표시할 업무 할당 정보가 없습니다.")
+            return
+        
+        # 간트 차트 데이터 준비
+        gantt_data = []
+        
+        for assignment in result.round_robin_assignments:
+            gantt_data.append({
+                'Task': f"{assignment.task_name}",
+                'Start': assignment.start_day,
+                'Finish': assignment.end_day,
+                'Resource': assignment.assignee_name,
+                'Duration': assignment.end_day - assignment.start_day + 1,
+                'Hours': assignment.estimated_hours,
+                'Sprint': assignment.sprint_name if assignment.sprint_name else "미분류"
+            })
+        
+        df_gantt = pd.DataFrame(gantt_data)
+        
+        # 스프린트별 간트 차트
+        if result.sprint_workloads:
+            st.markdown("#### 🚀 스프린트별 간트 차트")
+            
+            for sprint_workload in result.sprint_workloads:
+                if not sprint_workload.assignments:
+                    continue
+                    
+                sprint_df = df_gantt[df_gantt['Sprint'] == sprint_workload.sprint_name]
+                
+                if len(sprint_df) == 0:
+                    continue
+                
+                fig = px.timeline(
+                    sprint_df,
+                    x_start='Start',
+                    x_end='Finish', 
+                    y='Task',
+                    color='Resource',
+                    title=f"📋 {sprint_workload.sprint_name} 간트 차트",
+                    labels={'Start': '시작일차', 'Finish': '종료일차'},
+                    hover_data=['Hours', 'Duration']
+                )
+                
+                fig.update_layout(
+                    height=max(400, len(sprint_df) * 30 + 200),
+                    xaxis_title="일차",
+                    yaxis_title="업무"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # 전체 프로젝트 간트 차트
+        st.markdown("#### 📊 전체 프로젝트 타임라인")
+        
+        fig_all = px.timeline(
+            df_gantt,
+            x_start='Start',
+            x_end='Finish',
+            y='Task', 
+            color='Resource',
+            title="전체 프로젝트 간트 차트",
+            labels={'Start': '시작일차', 'Finish': '종료일차'},
+            hover_data=['Hours', 'Duration', 'Sprint']
+        )
+        
+        fig_all.update_layout(
+            height=max(500, len(df_gantt) * 25 + 200),
+            xaxis_title="일차",
+            yaxis_title="업무"
+        )
+        
+        st.plotly_chart(fig_all, use_container_width=True)
+    
+    @staticmethod
+    def _render_imbalance_indicators(result):
+        """불균형 지표 시각화"""
+        st.subheader("⚖️ 업무 분배 불균형 지표")
+        
+        if not result.team_workloads:
+            st.warning("표시할 데이터가 없습니다.")
+            return
+        
+        # 데이터 준비
+        workload_data = []
+        for workload in result.team_workloads:
+            workload_data.append({
+                "팀원": workload.member_name,
+                "총할당시간": workload.total_assigned_hours,
+                "활용률": workload.utilization_rate,
+                "예상소요일": workload.estimated_days
+            })
+        
+        df = pd.DataFrame(workload_data)
+        
+        # 1. 활용률 분포 히스토그램
+        st.markdown("#### 📊 활용률 분포")
+        fig1 = px.histogram(
+            df,
+            x="활용률",
+            nbins=10,
+            title="팀원별 활용률 분포",
+            labels={"활용률": "활용률 (%)", "count": "팀원 수"}
+        )
+        fig1.add_vline(x=100, line_dash="dash", line_color="red", 
+                      annotation_text="이상적 활용률 (100%)")
+        fig1.update_layout(height=400)
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        # 2. 균형도 지표 계산 및 시각화
+        total_hours = df['총할당시간'].tolist()
+        if total_hours:
+            max_hours = max(total_hours)
+            min_hours = min(total_hours)
+            avg_hours = sum(total_hours) / len(total_hours)
+            std_hours = df['총할당시간'].std()
+            
+            # 균형도 메트릭
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                balance_ratio = (min_hours / max_hours * 100) if max_hours > 0 else 0
+                st.metric("균형도", f"{balance_ratio:.1f}%", 
+                         help="최소 할당시간 / 최대 할당시간 × 100 (100%에 가까울수록 균형적)")
+            
+            with col2:
+                st.metric("최대 할당시간", f"{max_hours:.1f}h")
+            
+            with col3:
+                st.metric("최소 할당시간", f"{min_hours:.1f}h")
+            
+            with col4:
+                st.metric("표준편차", f"{std_hours:.1f}h", 
+                         help="값이 낮을수록 균등하게 분배됨")
+        
+        # 3. 팀원별 편차 시각화
+        st.markdown("#### 📈 평균 대비 편차")
+        df['평균대비편차'] = df['총할당시간'] - df['총할당시간'].mean()
+        
+        fig3 = px.bar(
+            df,
+            x="팀원",
+            y="평균대비편차",
+            color="평균대비편차",
+            color_continuous_scale=["red", "white", "blue"],
+            title="평균 할당시간 대비 편차",
+            labels={"평균대비편차": "편차 (h)"}
+        )
+        fig3.add_hline(y=0, line_dash="dash", line_color="black", 
+                      annotation_text="평균선")
+        fig3.update_layout(height=400)
+        st.plotly_chart(fig3, use_container_width=True)
+        
+        # 4. 종합 분석 및 권장사항
+        st.markdown("#### 💡 불균형 분석 결과")
+        
+        analysis_results = []
+        
+        # 과부하 팀원
+        overloaded = df[df['활용률'] > 100]
+        if len(overloaded) > 0:
+            analysis_results.append(f"🔴 **과부하 팀원**: {len(overloaded)}명")
+            for _, member in overloaded.iterrows():
+                analysis_results.append(f"   - {member['팀원']}: {member['활용률']:.1f}% 활용률")
+        
+        # 저활용 팀원
+        underutilized = df[df['활용률'] < 50]
+        if len(underutilized) > 0:
+            analysis_results.append(f"🟡 **저활용 팀원**: {len(underutilized)}명")
+            for _, member in underutilized.iterrows():
+                analysis_results.append(f"   - {member['팀원']}: {member['활용률']:.1f}% 활용률")
+        
+        # 균형도 평가
+        balance_ratio = (min(total_hours) / max(total_hours) * 100) if max(total_hours) > 0 else 0
+        if balance_ratio >= 80:
+            analysis_results.append("✅ **균형도 양호**: 팀원 간 업무 분배가 균등합니다.")
+        elif balance_ratio >= 60:
+            analysis_results.append("🟡 **균형도 보통**: 일부 개선이 필요합니다.")
+        else:
+            analysis_results.append("🔴 **균형도 불량**: 업무 재분배를 고려해주세요.")
+        
+        if not analysis_results:
+            analysis_results.append("✅ **이상적인 분배**: 현재 업무 분배가 적절합니다!")
+        
+        for result_text in analysis_results:
+            st.markdown(result_text)
