@@ -18,7 +18,7 @@ class SimulationRunner:
     @staticmethod
     def render():
         """시뮬레이션 실행 UI"""
-        st.header("🎯 H5. 업무 분배 시뮬레이션")
+        st.header("🎯 업무 분배 시뮬레이션")
         
         # 프로젝트 기본 정보 표시
         project_summary = get_project_summary(st.session_state.current_project_id)
@@ -716,7 +716,7 @@ class SimulationVisualization:
             st.markdown(result_text)
 
 class SimulationExport:
-    """H7. 결과 Export 컴포넌트"""
+    """결과 Export 컴포넌트"""
     
     @staticmethod
     def render():
@@ -728,7 +728,7 @@ class SimulationExport:
         result = st.session_state.simulation_result
         summary = get_simulation_summary(result)
         
-        st.header("📤 H7. 결과 Export")
+        st.header("📤 결과 Export")
         
         # Export 옵션
         export_tab1, export_tab2, export_tab3 = st.tabs(["📊 요약 리포트", "📋 상세 데이터", "📈 분석 결과"])
