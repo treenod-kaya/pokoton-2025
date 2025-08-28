@@ -10,6 +10,7 @@ import io
 from simulation import run_simulation, get_simulation_summary
 from database import get_project_summary
 from utils import DataValidator, ErrorHandler
+from utils.calendar_utils import KoreanHolidayCalendar
 
 class SimulationRunner:
     """시뮬레이션 실행 컴포넌트"""
@@ -475,7 +476,10 @@ class SimulationVisualization:
         
         # 캘린더 뷰 (실제 날짜 기반인 경우에만)
         if is_all_date_based:
-            st.markdown("#### 📅 캘린더 뷰")
+            st.markdown("#### 📅 캘린더 뷰 (업무일 기준)")
+            
+            # 주말/공휴일 제외 안내
+            st.info("🗓️ **업무일 기준 스케줄링**: 주말(토,일)과 한국 공휴일이 자동으로 제외되어 계산됩니다.")
             
             # 날짜별 업무 그룹화
             calendar_data = []
@@ -486,40 +490,85 @@ class SimulationVisualization:
                 # 업무 기간 동안 각 날짜별로 데이터 생성
                 current_date = start_date
                 while current_date <= end_date:
+                    date_obj = current_date.date()
+                    is_workday = KoreanHolidayCalendar.is_workday(date_obj)
+                    holiday_name = KoreanHolidayCalendar.get_holiday_name(date_obj)
+                    
                     calendar_data.append({
                         'Date': current_date.strftime('%Y-%m-%d'),
                         'Task': row['Task'],
                         'Resource': row['Resource'],
                         'Sprint': row['Sprint'],
-                        'Hours': row['Hours'] / row['Duration'],  # 일일 시간으로 분할
+                        'Hours': row['Hours'] / row['Duration'] if is_workday else 0,  # 업무일만 시간 할당
                         'WeekDay': current_date.strftime('%A'),
-                        'Month': current_date.strftime('%B %Y')
+                        'Month': current_date.strftime('%B %Y'),
+                        'IsWorkday': is_workday,
+                        'HolidayName': holiday_name,
+                        'DayType': '업무일' if is_workday else ('공휴일: ' + holiday_name if holiday_name else '주말')
                     })
                     current_date += timedelta(days=1)
             
             if calendar_data:
                 cal_df = pd.DataFrame(calendar_data)
                 
-                # 날짜별 팀원 업무량 히트맵
-                pivot_data = cal_df.groupby(['Date', 'Resource'])['Hours'].sum().reset_index()
-                pivot_table = pivot_data.pivot(index='Resource', columns='Date', values='Hours').fillna(0)
+                # 업무일별 팀원 업무량 히트맵 (업무일만)
+                workday_df = cal_df[cal_df['IsWorkday'] == True]
                 
-                fig_heatmap = go.Figure(data=go.Heatmap(
-                    z=pivot_table.values,
-                    x=pivot_table.columns,
-                    y=pivot_table.index,
-                    colorscale='RdYlBu_r',
-                    hovertemplate='<b>%{y}</b><br>날짜: %{x}<br>업무량: %{z:.1f}시간<extra></extra>'
-                ))
-                
-                fig_heatmap.update_layout(
-                    title="📅 팀원별 일일 업무량 캘린더",
-                    xaxis_title="날짜",
-                    yaxis_title="팀원",
-                    height=max(300, len(pivot_table.index) * 50)
-                )
-                
-                st.plotly_chart(fig_heatmap, use_container_width=True)
+                if len(workday_df) > 0:
+                    pivot_data = workday_df.groupby(['Date', 'Resource'])['Hours'].sum().reset_index()
+                    pivot_table = pivot_data.pivot(index='Resource', columns='Date', values='Hours').fillna(0)
+                    
+                    # 날짜별 색상 정보 추가 (주말/공휴일 구분)
+                    date_colors = []
+                    date_labels = []
+                    for date_str in pivot_table.columns:
+                        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        if KoreanHolidayCalendar.is_workday(date_obj):
+                            date_colors.append('업무일')
+                            date_labels.append(f"{date_str}<br>({date_obj.strftime('%a')})")
+                        else:
+                            date_colors.append('비업무일')
+                            date_labels.append(f"{date_str}<br>({date_obj.strftime('%a')} - 휴일)")
+                    
+                    fig_heatmap = go.Figure(data=go.Heatmap(
+                        z=pivot_table.values,
+                        x=pivot_table.columns,
+                        y=pivot_table.index,
+                        colorscale='RdYlBu_r',
+                        hovertemplate='<b>%{y}</b><br>날짜: %{x}<br>업무량: %{z:.1f}시간<extra></extra>'
+                    ))
+                    
+                    fig_heatmap.update_layout(
+                        title="📅 팀원별 업무일 기준 업무량 캘린더",
+                        xaxis_title="날짜 (업무일만 표시)",
+                        yaxis_title="팀원",
+                        height=max(300, len(pivot_table.index) * 50)
+                    )
+                    
+                    st.plotly_chart(fig_heatmap, use_container_width=True)
+                    
+                    # 주말/공휴일 통계
+                    col1, col2, col3 = st.columns(3)
+                    total_days = len(cal_df['Date'].unique())
+                    workdays = len(cal_df[cal_df['IsWorkday'] == True]['Date'].unique())
+                    holidays = len(cal_df[cal_df['HolidayName'] != '']['Date'].unique())
+                    
+                    with col1:
+                        st.metric("전체 기간", f"{total_days}일")
+                    with col2:
+                        st.metric("업무일", f"{workdays}일")
+                    with col3:
+                        st.metric("제외된 휴일", f"{total_days - workdays}일")
+                    
+                    # 제외된 날짜 상세 정보
+                    excluded_dates = cal_df[cal_df['IsWorkday'] == False][['Date', 'DayType']].drop_duplicates().sort_values('Date')
+                    if len(excluded_dates) > 0:
+                        with st.expander("🚫 제외된 날짜 상세"):
+                            for _, row in excluded_dates.iterrows():
+                                date_obj = datetime.strptime(row['Date'], '%Y-%m-%d')
+                                st.write(f"• **{row['Date']}** ({date_obj.strftime('%A')}): {row['DayType']}")
+                else:
+                    st.warning("업무일 데이터가 없습니다.")
     
     @staticmethod
     def _render_imbalance_indicators(result):

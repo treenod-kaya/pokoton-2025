@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, date
 import math
 import random
 from database import get_team_members, get_tasks, get_sprints
+from utils.calendar_utils import KoreanHolidayCalendar, WorkdayCalculator
 
 @dataclass
 class TaskAssignment:
@@ -217,7 +218,7 @@ class RoundRobinSimulator:
         return workloads
     
     def _calculate_real_dates(self, assignments: List[TaskAssignment], sprint_name: str) -> List[TaskAssignment]:
-        """일차를 실제 날짜로 변환 (스프린트 기준)"""
+        """일차를 실제 날짜로 변환 (업무일 기준, 주말/공휴일 제외)"""
         # 해당 스프린트 정보 찾기
         sprint_info = next((s for s in self.sprints if s['name'] == sprint_name), None)
         
@@ -231,15 +232,39 @@ class RoundRobinSimulator:
             except:
                 base_date = date.today()
         
-        # 각 할당에 실제 날짜 계산
+        # 스프린트 시작일을 첫 번째 업무일로 조정
+        sprint_start_workday = KoreanHolidayCalendar.get_next_workday(base_date)
+        
+        # 팀원별 현재 작업 날짜 추적 (업무일 기준)
+        member_current_workday = {}
+        
+        # 각 할당에 실제 날짜 계산 (업무일 기준)
         for assignment in assignments:
-            # 시작 날짜: 스프린트 시작일 + (start_day - 1)일
-            start_date = base_date + timedelta(days=assignment.start_day - 1)
-            # 종료 날짜: 스프린트 시작일 + (end_day - 1)일  
-            end_date = base_date + timedelta(days=assignment.end_day - 1)
+            # 팀원별 시작 업무일 계산
+            assignee = assignment.assignee_name
             
-            assignment.start_date = start_date.strftime('%Y-%m-%d')
-            assignment.end_date = end_date.strftime('%Y-%m-%d')
+            if assignee not in member_current_workday:
+                # 첫 업무면 스프린트 시작 업무일부터
+                member_current_workday[assignee] = sprint_start_workday
+            
+            # 현재 업무의 시작일
+            task_start_date = member_current_workday[assignee]
+            
+            # 업무 완료에 필요한 업무일 수 계산
+            daily_hours = 8.0  # 기본 일일 작업시간
+            required_workdays = max(1, int(assignment.estimated_hours / daily_hours))
+            if assignment.estimated_hours % daily_hours > 0:
+                required_workdays += 1
+            
+            # 종료일 계산 (업무일 기준)
+            task_end_date = KoreanHolidayCalendar.add_workdays(task_start_date, required_workdays - 1)
+            
+            # 할당 정보 업데이트
+            assignment.start_date = task_start_date.strftime('%Y-%m-%d')
+            assignment.end_date = task_end_date.strftime('%Y-%m-%d')
+            
+            # 해당 팀원의 다음 업무 시작일 업데이트
+            member_current_workday[assignee] = KoreanHolidayCalendar.add_workdays(task_end_date, 1)
         
         return assignments
     
