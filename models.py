@@ -2,13 +2,25 @@
 
 from dataclasses import dataclass
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 
 @dataclass
 class Project:
     """프로젝트 데이터 모델"""
     id: Optional[int] = None
     name: str = ""
+    created_at: Optional[datetime] = None
+
+@dataclass
+class Sprint:
+    """스프린트/빌드 데이터 모델"""
+    id: Optional[int] = None
+    project_id: int = 0
+    name: str = ""                          # 스프린트명 (Sprint 1.0, v1.0.0 등)
+    description: str = ""                   # 스프린트 설명
+    start_date: Optional[date] = None       # 시작일
+    end_date: Optional[date] = None         # 종료일
+    status: str = "planned"                 # 상태: planned, active, completed
     created_at: Optional[datetime] = None
 
 @dataclass  
@@ -67,3 +79,13 @@ def validate_task(name: str, difficulty: int, hours: float) -> bool:
         1 <= difficulty <= 5 and
         hours > 0
     )
+
+def validate_sprint(name: str, start_date: Optional[date], end_date: Optional[date]) -> bool:
+    """스프린트 정보 유효성 검증"""
+    if not (name and name.strip()):
+        return False
+    
+    if start_date and end_date:
+        return start_date <= end_date
+    
+    return True

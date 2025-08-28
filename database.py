@@ -3,6 +3,34 @@
 import sqlite3
 from typing import List, Dict, Optional
 from config import DATABASE_CONFIG
+# Sprint 모델은 임시로 여기서 정의
+from dataclasses import dataclass
+from typing import Optional
+from datetime import datetime, date
+
+@dataclass
+class Sprint:
+    """스프린트/빌드 데이터 모델"""
+    id: Optional[int] = None
+    project_id: int = 0
+    name: str = ""
+    description: str = ""
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: str = "planned"
+    created_at: Optional[datetime] = None
+
+def validate_sprint(name: str, start_date: Optional[date], end_date: Optional[date]) -> bool:
+    """스프린트 정보 유효성 검증"""
+    if not (name and name.strip()):
+        return False
+    
+    if start_date and end_date:
+        return start_date <= end_date
+    
+    return True
+
+# 기존 모델들은 models 모듈에서 import
 from models import Project, TeamMember, Task, validate_project_name, validate_team_member, validate_task
 
 class DatabaseManager:
@@ -88,6 +116,124 @@ def delete_project(project_id: int) -> bool:
         (project_id,)
     )
     return True  # 삭제 성공
+
+# 스프린트 관련 함수들
+def add_sprint(project_id: int, name: str, description: str = "", start_date: str = "", end_date: str = "", status: str = "planned") -> int:
+    """스프린트 추가"""
+    from datetime import datetime
+    
+    if not validate_sprint(name, None, None):
+        raise ValueError("유효하지 않은 스프린트 정보입니다.")
+    
+    # 날짜 변환 (빈 문자열이면 None으로)
+    start_date_obj = start_date if start_date else None
+    end_date_obj = end_date if end_date else None
+    
+    try:
+        sprint_id = db.execute_query(
+            '''INSERT INTO sprints (project_id, name, description, start_date, end_date, status)
+               VALUES (?, ?, ?, ?, ?, ?)''',
+            (project_id, name.strip(), description, start_date_obj, end_date_obj, status),
+            fetch="lastrowid"
+        )
+        return sprint_id
+    except sqlite3.IntegrityError:
+        raise ValueError(f"스프린트 '{name}'은 이미 존재합니다.")
+
+def get_sprints(project_id: int) -> List[Dict]:
+    """프로젝트의 스프린트 목록 조회"""
+    rows = db.execute_query(
+        '''SELECT id, name, description, start_date, end_date, status, created_at
+           FROM sprints
+           WHERE project_id = ?
+           ORDER BY start_date, created_at''',
+        (project_id,),
+        fetch="all"
+    )
+    
+    return [{
+        "id": row[0],
+        "name": row[1],
+        "description": row[2],
+        "start_date": row[3],
+        "end_date": row[4],
+        "status": row[5],
+        "created_at": row[6]
+    } for row in rows or []]
+
+def get_sprint_by_id(sprint_id: int) -> Optional[Dict]:
+    """ID로 스프린트 조회"""
+    row = db.execute_query(
+        '''SELECT id, project_id, name, description, start_date, end_date, status, created_at
+           FROM sprints
+           WHERE id = ?''',
+        (sprint_id,),
+        fetch="one"
+    )
+    
+    if row:
+        return {
+            "id": row[0],
+            "project_id": row[1],
+            "name": row[2],
+            "description": row[3],
+            "start_date": row[4],
+            "end_date": row[5],
+            "status": row[6],
+            "created_at": row[7]
+        }
+    return None
+
+def get_sprint_by_name(project_id: int, name: str) -> Optional[Dict]:
+    """이름으로 스프린트 조회"""
+    row = db.execute_query(
+        '''SELECT id, project_id, name, description, start_date, end_date, status, created_at
+           FROM sprints
+           WHERE project_id = ? AND name = ?''',
+        (project_id, name),
+        fetch="one"
+    )
+    
+    if row:
+        return {
+            "id": row[0],
+            "project_id": row[1],
+            "name": row[2],
+            "description": row[3],
+            "start_date": row[4],
+            "end_date": row[5],
+            "status": row[6],
+            "created_at": row[7]
+        }
+    return None
+
+def update_sprint(sprint_id: int, name: str, description: str = "", start_date: str = "", end_date: str = "", status: str = "planned") -> bool:
+    """스프린트 수정"""
+    if not validate_sprint(name, None, None):
+        raise ValueError("유효하지 않은 스프린트 정보입니다.")
+    
+    # 날짜 변환 (빈 문자열이면 None으로)
+    start_date_obj = start_date if start_date else None
+    end_date_obj = end_date if end_date else None
+    
+    try:
+        db.execute_query(
+            '''UPDATE sprints SET
+                name = ?, description = ?, start_date = ?, end_date = ?, status = ?
+               WHERE id = ?''',
+            (name.strip(), description, start_date_obj, end_date_obj, status, sprint_id)
+        )
+        return True
+    except sqlite3.IntegrityError:
+        raise ValueError(f"스프린트 '{name}'은 이미 존재합니다.")
+
+def delete_sprint(sprint_id: int) -> bool:
+    """스프린트 삭제"""
+    db.execute_query(
+        "DELETE FROM sprints WHERE id = ?",
+        (sprint_id,)
+    )
+    return True
 
 # 팀원 관련 함수들
 def add_team_member(project_id: int, name: str, role: str, available_hours_per_day: float, skill_level: str = "중급", hourly_cost: float = 5.0) -> int:

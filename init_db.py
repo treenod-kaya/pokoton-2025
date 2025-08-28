@@ -33,6 +33,23 @@ def create_tables():
     ''')
     print(">> projects 테이블 생성 완룼")
     
+    # 스프린트/빌드 테이블
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sprints (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            start_date DATE,
+            end_date DATE,
+            status TEXT DEFAULT 'planned',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
+            UNIQUE (project_id, name)
+        )
+    ''')
+    print(">> sprints 테이블 생성 완료")
+    
     # 팀원 테이블
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS team_members (
@@ -45,7 +62,7 @@ def create_tables():
             FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
         )
     ''')
-    print(">> team_members 테이블 생성 완룼")
+    print(">> team_members 테이블 생성 완료")
     
     # 업무 테이블 (H4: 13개 필드로 확장)
     cursor.execute('''
@@ -69,7 +86,7 @@ def create_tables():
             FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
         )
     ''')
-    print(">> tasks 테이블 생성 완룼")
+    print(">> tasks 테이블 생성 완료")
     
     conn.commit()
     conn.close()
@@ -84,6 +101,18 @@ def insert_sample_data():
         # 샘플 프로젝트
         cursor.execute("INSERT INTO projects (name) VALUES (?)", ("샘플 프로젝트",))
         project_id = cursor.lastrowid
+        
+        # 샘플 스프린트
+        sample_sprints = [
+            (project_id, "Sprint 1.0", "첫 번째 스프린트 - 기본 기능", "2024-01-01", "2024-01-14", "active"),
+            (project_id, "Sprint 1.1", "두 번째 스프린트 - 개선사항", "2024-01-15", "2024-01-28", "planned"),
+            (project_id, "v1.0.0", "정식 릴리즈 버전", "2024-02-01", "2024-02-15", "planned")
+        ]
+        
+        cursor.executemany(
+            "INSERT INTO sprints (project_id, name, description, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?)",
+            sample_sprints
+        )
         
         # 샘플 팀원
         sample_members = [

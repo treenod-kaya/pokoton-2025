@@ -2,7 +2,7 @@
 
 import streamlit as st
 import pandas as pd
-from database import add_task, get_tasks, delete_task, get_team_members, update_task, get_task_by_id
+from database import add_task, get_tasks, delete_task, get_team_members, update_task, get_task_by_id, get_sprints, add_sprint
 
 class TaskForm:
     """업무 입력/수정 폼 컴포넌트 클래스"""
@@ -56,39 +56,78 @@ class TaskForm:
                     default_attribute_index = 0
                 attribute = st.selectbox("속성", options=attribute_options, index=default_attribute_index, key=f"{form_key_prefix}task_attribute")
             with col2:
-                # 기존 빌드 목록 (세션 상태로 관리)
-                if 'build_types' not in st.session_state:
-                    st.session_state.build_types = [
-                        "Sprint 1.0", "Sprint 1.1", "Sprint 1.2", 
-                        "v1.0.0", "v1.1.0", "v2.0.0",
-                        "2024-Q4", "2025-Q1", "Hot Fix"
-                    ]
+                # 스프린트 목록을 DB에서 가져오기
+                sprints = get_sprints(st.session_state.current_project_id)
+                sprint_options = [s['name'] for s in sprints] if sprints else []
+                
+                # 기본 빌드 옵션 (레거시)
+                default_builds = ["미분류"]
+                
+                # 전체 빌드 옵션
+                all_build_options = sprint_options + default_builds
                 
                 # 수정 모드일 때 현재 빌드가 목록에 없으면 추가
-                if is_edit_mode and task_data and task_data['build_type'] and task_data['build_type'] not in st.session_state.build_types:
-                    st.session_state.build_types.append(task_data['build_type'])
+                if is_edit_mode and task_data and task_data['build_type'] and task_data['build_type'] not in all_build_options:
+                    all_build_options.append(task_data['build_type'])
                 
                 if is_edit_mode:
                     # 수정 모드: 드롭다운만 표시
-                    default_build_index = st.session_state.build_types.index(task_data['build_type']) if task_data and task_data['build_type'] in st.session_state.build_types else 0
-                    build_type = st.selectbox("적용 빌드", options=st.session_state.build_types, index=default_build_index, key=f"{form_key_prefix}task_build_type")
+                    default_build_index = all_build_options.index(task_data['build_type']) if task_data and task_data['build_type'] in all_build_options else 0
+                    build_type = st.selectbox("적용 빌드/스프린트", options=all_build_options, index=default_build_index, key=f"{form_key_prefix}task_build_type")
                 else:
-                    # 입력 모드: 새 빌드 추가 옵션 포함
-                    build_options = st.session_state.build_types + ["+ 새 빌드 추가"]
-                    selected_build = st.selectbox("적용 빌드", options=build_options, index=0, key=f"{form_key_prefix}task_build_select")
+                    # 입력 모드: 스프린트 선택 또는 새 스프린트 추가
+                    build_options = all_build_options + ["+ 새 스프린트 추가"]
+                    selected_build = st.selectbox("적용 빌드/스프린트", options=build_options, index=0, key=f"{form_key_prefix}task_build_select")
                     
-                    # 새 빌드 추가 선택 시
-                    if selected_build == "+ 새 빌드 추가":
-                        new_build = st.text_input("새 빌드명", placeholder="예: Sprint 2.0, v3.0.0", key=f"{form_key_prefix}new_build_input")
-                        if new_build and new_build.strip():
-                            if st.button("빌드 추가", key=f"{form_key_prefix}add_build_btn"):
-                                if new_build.strip() not in st.session_state.build_types:
-                                    st.session_state.build_types.append(new_build.strip())
-                                    st.success(f"'{new_build}' 빌드가 추가되었습니다!")
-                                    st.rerun()
+                    # 새 스프린트 추가 선택 시
+                    if selected_build == "+ 새 스프린트 추가":
+                        with st.expander("🚀 새 스프린트 생성", expanded=True):
+                            sprint_col1, sprint_col2 = st.columns(2)
+                            with sprint_col1:
+                                new_sprint_name = st.text_input("스프린트명", placeholder="예: Sprint 3.0, v2.0.0", key=f"{form_key_prefix}new_sprint_name")
+                            with sprint_col2:
+                                sprint_status = st.selectbox("상태", options=["planned", "active", "completed"], 
+                                                           format_func=lambda x: {"planned": "계획됨", "active": "진행중", "completed": "완료됨"}[x],
+                                                           key=f"{form_key_prefix}new_sprint_status")
+                            
+                            new_sprint_description = st.text_area("스프린트 설명", placeholder="스프린트에 대한 설명...", key=f"{form_key_prefix}new_sprint_description")
+                            
+                            date_col1, date_col2 = st.columns(2)
+                            with date_col1:
+                                from datetime import date
+                                sprint_start_date = st.date_input("시작일", value=date.today(), key=f"{form_key_prefix}new_sprint_start")
+                            with date_col2:
+                                sprint_end_date = st.date_input("종료일", value=date.today(), key=f"{form_key_prefix}new_sprint_end")
+                            
+                            if st.button("🚀 스프린트 생성", key=f"{form_key_prefix}create_sprint_btn", type="primary"):
+                                if new_sprint_name and new_sprint_name.strip():
+                                    try:
+                                        if sprint_start_date > sprint_end_date:
+                                            st.error("⚠️ 시작일이 종료일보다 늦을 수 없습니다.")
+                                        else:
+                                            add_sprint(
+                                                project_id=st.session_state.current_project_id,
+                                                name=new_sprint_name.strip(),
+                                                description=new_sprint_description,
+                                                start_date=sprint_start_date.strftime("%Y-%m-%d"),
+                                                end_date=sprint_end_date.strftime("%Y-%m-%d"),
+                                                status=sprint_status
+                                            )
+                                            st.success(f"✅ 스프린트 '{new_sprint_name}'가 생성되었습니다!")
+                                            st.info("페이지를 새로고침하면 새 스프린트가 목록에 나타납니다.")
+                                            # 생성된 스프린트를 build_type으로 설정
+                                            build_type = new_sprint_name.strip()
+                                    except Exception as e:
+                                        st.error(f"❌ 스프린트 생성 중 오류가 발생했습니다: {str(e)}")
                                 else:
-                                    st.warning("이미 존재하는 빌드명입니다.")
-                        build_type = new_build if new_build and new_build.strip() else ""
+                                    st.error("⚠️ 스프린트명을 입력해주세요.")
+                        
+                        # 스프린트명이 있으면 그것을 사용, 없으면 빈 문자열
+                        if 'new_sprint_name' in locals() and new_sprint_name:
+                            build_type = new_sprint_name.strip()
+                        else:
+                            build_type = ""
+                    
                     else:
                         build_type = selected_build
             with col3:
@@ -204,7 +243,7 @@ class TaskForm:
             else:
                 col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
                 with col_btn2:
-                    if st.button("📝 업무 추가", key=f"{form_key_prefix}add_task", type="primary", width="stretch"):
+                    if st.button("📝 업무 추가", key=f"{form_key_prefix}add_task", type="primary", use_container_width=True):
                         if item_name and item_name.strip():
                             try:
                                 add_task(
@@ -260,7 +299,7 @@ class TaskList:
                 } for task in tasks
             ])
             
-            st.dataframe(tasks_df, width="stretch", hide_index=True)
+            st.dataframe(tasks_df, use_container_width=True, hide_index=True)
             
             # 업무 수정/삭제 기능
             col1, col2 = st.columns(2)

@@ -65,7 +65,7 @@ class TeamMemberForm:
             # 추가 버튼
             col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
             with col_btn2:
-                if st.button("👨‍💻 팀원 추가", key="add_member", type="primary", width="stretch"):
+                if st.button("👨‍💻 팀원 추가", key="add_member", type="primary", use_container_width=True):
                     if member_name and member_name.strip() and member_role:
                         try:
                             add_team_member(
@@ -200,7 +200,7 @@ class TeamMemberList:
                     } for m in members
                 ])
                 
-                st.dataframe(members_df, width="stretch", hide_index=True)
+                st.dataframe(members_df, use_container_width=True, hide_index=True)
                 
         else:
             st.info("👥 아직 추가된 팀원이 없습니다. 위에서 팀원을 추가해주세요.")

@@ -4,7 +4,8 @@ import streamlit as st
 from components import (
     SystemStatus, DevelopmentTools, ProgressIndicator,
     TeamMemberForm, TeamMemberList, TaskForm, TaskList,
-    SimulationRunner, SimulationResults, SimulationAnalysis
+    SimulationRunner, SimulationResults, SimulationAnalysis,
+    SprintForm, SprintList, SprintTaskDistribution
 )
 from database import get_project_by_id
 
@@ -100,8 +101,8 @@ def render_project_main_page():
         with col3:
             st.metric("생성일", project_info['created_at'][:10] if project_info['created_at'] else "")
     
-    # 탭으로 팀원 관리, 업무 관리, 시뮬레이션 분리
-    tab1, tab2, tab3 = st.tabs(["👥 팀원 관리", "📋 업무 관리", "🎯 시뮬레이션"])
+    # 탭으로 팀원 관리, 업무 관리, 스프린트 관리, 시뮬레이션 분리
+    tab1, tab2, tab3, tab4 = st.tabs(["👥 팀원 관리", "📋 업무 관리", "🚀 스프린트 관리", "🎯 시뮬레이션"])
     
     with tab1:
         # H3 단계: 팀원 관리
@@ -128,10 +129,30 @@ def render_project_main_page():
         TaskList.render()
     
     with tab3:
+        # 스프린트 관리
+        # 스프린트 수정 모드인지 확인
+        if st.session_state.get('editing_sprint_id'):
+            from database import get_sprint_by_id
+            sprint_data = get_sprint_by_id(st.session_state.editing_sprint_id)
+            if sprint_data:
+                SprintForm.render(sprint_data=sprint_data, is_edit_mode=True)
+            else:
+                st.error("선택한 스프린트를 찾을 수 없습니다.")
+                del st.session_state.editing_sprint_id
+                st.rerun()
+        else:
+            SprintForm.render()
+        
+        st.markdown("---")
+        SprintList.render()
+    
+    with tab4:
         # H5 단계: 시뮬레이션
         SimulationRunner.render()
         st.markdown("---")
         SimulationResults.render()
+        st.markdown("---")
+        SprintTaskDistribution.render()
         st.markdown("---")
         SimulationAnalysis.render()
     

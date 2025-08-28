@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
 import math
-from database import get_team_members, get_tasks
+from database import get_team_members, get_tasks, get_sprints
 
 @dataclass
 class TaskAssignment:
@@ -16,6 +16,8 @@ class TaskAssignment:
     priority: int
     start_day: int
     end_day: int
+    sprint_name: str = ""
+    build_type: str = ""
     
 @dataclass
 class TeamMemberWorkload:
@@ -30,12 +32,23 @@ class TeamMemberWorkload:
     estimated_days: int
 
 @dataclass
+class SprintWorkload:
+    """스프린트별 업무량"""
+    sprint_name: str
+    sprint_start_date: str
+    sprint_end_date: str
+    total_tasks: int
+    total_hours: float
+    assignments: List[TaskAssignment]
+
+@dataclass
 class SimulationResult:
     """시뮬레이션 결과"""
     project_id: int
     total_tasks: int
     total_estimated_hours: float
     team_workloads: List[TeamMemberWorkload]
+    sprint_workloads: List[SprintWorkload]
     estimated_completion_days: int
     round_robin_assignments: List[TaskAssignment]
     created_at: datetime
@@ -47,6 +60,7 @@ class RoundRobinSimulator:
         self.project_id = project_id
         self.team_members = get_team_members(project_id)
         self.tasks = get_tasks(project_id)
+        self.sprints = get_sprints(project_id)
     
     def simulate(self) -> SimulationResult:
         """메인 시뮬레이션 실행"""
@@ -56,19 +70,39 @@ class RoundRobinSimulator:
         if not self.tasks:
             raise ValueError("업무가 없습니다. 업무를 먼저 추가해주세요.")
         
-        # 1. 업무를 우선순위별로 정렬
-        sorted_tasks = sorted(self.tasks, key=lambda x: (x['priority'], x['id']))
+        # 1. 스프린트별 업무 그룹화
+        sprint_tasks = self._group_tasks_by_sprint()
         
-        # 2. Round Robin 방식으로 업무 분배
-        assignments = self._distribute_tasks_round_robin(sorted_tasks)
+        # 2. 우선순위별로 업무 정렬 (스프린트 내에서)
+        all_assignments = []
+        sprint_workloads = []
         
-        # 3. 팀원별 업무량 계산
-        team_workloads = self._calculate_team_workloads(assignments)
+        for sprint_name, tasks in sprint_tasks.items():
+            sorted_tasks = sorted(tasks, key=lambda x: (x['priority'], x['id']))
+            
+            # 3. Round Robin 방식으로 업무 분배
+            sprint_assignments = self._distribute_tasks_round_robin(sorted_tasks, sprint_name)
+            all_assignments.extend(sprint_assignments)
+            
+            # 스프린트별 워크로드 계산
+            sprint_info = next((s for s in self.sprints if s['name'] == sprint_name), None)
+            sprint_workload = SprintWorkload(
+                sprint_name=sprint_name,
+                sprint_start_date=sprint_info['start_date'] if sprint_info else "",
+                sprint_end_date=sprint_info['end_date'] if sprint_info else "",
+                total_tasks=len(sprint_assignments),
+                total_hours=sum(a.estimated_hours for a in sprint_assignments),
+                assignments=sprint_assignments
+            )
+            sprint_workloads.append(sprint_workload)
         
-        # 4. 전체 프로젝트 완료 예상일 계산
+        # 4. 팀원별 업무량 계산
+        team_workloads = self._calculate_team_workloads(all_assignments)
+        
+        # 5. 전체 프로젝트 완료 예상일 계산
         estimated_days = self._calculate_project_timeline(team_workloads)
         
-        # 5. 총 업무 시간 계산
+        # 6. 총 업무 시간 계산
         total_hours = sum(task['final_hours'] for task in self.tasks)
         
         return SimulationResult(
@@ -76,12 +110,28 @@ class RoundRobinSimulator:
             total_tasks=len(self.tasks),
             total_estimated_hours=total_hours,
             team_workloads=team_workloads,
+            sprint_workloads=sprint_workloads,
             estimated_completion_days=estimated_days,
-            round_robin_assignments=assignments,
+            round_robin_assignments=all_assignments,
             created_at=datetime.now()
         )
     
-    def _distribute_tasks_round_robin(self, sorted_tasks: List[Dict]) -> List[TaskAssignment]:
+    def _group_tasks_by_sprint(self) -> Dict[str, List[Dict]]:
+        """업무를 스프린트별로 그룹화"""
+        sprint_tasks = {}
+        
+        for task in self.tasks:
+            sprint_name = task.get('build_type', '미분류')
+            if not sprint_name:
+                sprint_name = '미분류'
+                
+            if sprint_name not in sprint_tasks:
+                sprint_tasks[sprint_name] = []
+            sprint_tasks[sprint_name].append(task)
+        
+        return sprint_tasks
+    
+    def _distribute_tasks_round_robin(self, sorted_tasks: List[Dict], sprint_name: str = "") -> List[TaskAssignment]:
         """Round Robin 방식으로 업무 분배"""
         assignments = []
         member_index = 0
@@ -109,7 +159,9 @@ class RoundRobinSimulator:
                 estimated_hours=task_hours,
                 priority=task['priority'],
                 start_day=start_day,
-                end_day=end_day
+                end_day=end_day,
+                sprint_name=sprint_name,
+                build_type=task.get('build_type', '')
             )
             
             assignments.append(assignment)
