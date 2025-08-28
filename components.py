@@ -406,13 +406,42 @@ def render_task_form():
         # 네 번째 행: 시간 추정
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            story_points_leader = st.number_input("스토리 포인트", min_value=0, max_value=50, value=0, key="task_story_points")
+            # 피보나치 수열 스토리 포인트 (1, 2, 3, 5, 8, 13, 21)
+            fibonacci_options = [1, 2, 3, 5, 8, 13, 21]
+            
+            # 현재 스토리 포인트 값 관리
+            if 'current_story_points' not in st.session_state:
+                st.session_state.current_story_points = 1
+            
+            # 현재 값이 피보나치 수열에 없으면 기본값으로 설정
+            if st.session_state.current_story_points not in fibonacci_options:
+                st.session_state.current_story_points = 1
+            
+            story_points_leader = st.number_input(
+                "스토리 포인트", 
+                min_value=min(fibonacci_options), 
+                max_value=max(fibonacci_options), 
+                value=st.session_state.current_story_points, 
+                step=1, 
+                key="task_story_points",
+                help="피보나치 수열: 1, 2, 3, 5, 8, 13, 21"
+            )
+            
+            # 입력값을 가장 가까운 피보나치 수로 조정
+            if story_points_leader != st.session_state.current_story_points:
+                closest_fib = min(fibonacci_options, key=lambda x: abs(x - story_points_leader))
+                st.session_state.current_story_points = closest_fib
+                story_points_leader = closest_fib
         with col2:
             duration_leader = st.number_input("예상 기간(리더)", min_value=0.0, max_value=100.0, value=0.0, step=0.5, key="task_duration_leader")
         with col3:
             duration_assignee = st.number_input("예상 기간(담당자)", min_value=0.0, max_value=100.0, value=0.0, step=0.5, key="task_duration_assignee")
         with col4:
-            final_hours = st.number_input("최종 예상시간", min_value=0.0, max_value=500.0, value=8.0, step=0.5, key="task_final_hours")
+            # 자동 계산된 최종 예상시간 (리더와 담당자 예상의 평균)
+            calculated_hours = (duration_leader + duration_assignee) / 2 if (duration_leader + duration_assignee) > 0 else 0.0
+            
+            final_hours = st.text_input("최종 예상시간", value=f"{calculated_hours:.1f}", key="task_final_hours", disabled=True, help="리더와 담당자 예상 기간의 평균으로 자동 계산됩니다")
+            final_hours = calculated_hours  # 실제 계산값 사용
         
         # 다섯 번째 행: AI 판단 및 연결성
         col1, col2 = st.columns(2)
