@@ -93,7 +93,6 @@ class TeamMemberList:
                             {icon_html}{member['name']}
                         </h4>
                         <p style="margin: 5px 0; color: inherit;"><strong>역할:</strong> {member['role']}</p>
-                        <p style="margin: 5px 0; color: inherit;"><strong>가용시간:</strong> {member['available_hours_per_day']:.1f}시간/일</p>
                         <p style="margin: 5px 0; color: inherit; opacity: 0.7;"><small>등록일: {member['created_at'][:10] if member['created_at'] else ''}</small></p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -109,13 +108,7 @@ class TeamMemberList:
             st.markdown("---")
             
             # 팀 요약 정보
-            total_hours = sum(m['available_hours_per_day'] for m in members)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("총 팀원 수", f"{len(members)}명")
-            with col2:
-                st.metric("일일 총 가용시간", f"{total_hours:.1f}시간")
+            st.metric("총 팀원 수", f"{len(members)}명")
                 
             # 테이블 형태도 제공 (토글)
             with st.expander("📊 상세 테이블 보기"):
@@ -124,7 +117,6 @@ class TeamMemberList:
                         "ID": m["id"],
                         "팀원명": m["name"],
                         "역할": m["role"],
-                        "일일 가용시간": f"{m['available_hours_per_day']:.1f}h",
                         "등록일": m["created_at"][:10] if m["created_at"] else ""
                     } for m in members
                 ])
