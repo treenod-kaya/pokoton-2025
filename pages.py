@@ -5,7 +5,7 @@ from components import (
     TeamMemberForm, TeamMemberList, TaskForm, TaskList,
     SimulationRunner, SimulationResults, SimulationAnalysis, SimulationVisualization, SimulationExport,
     SprintForm, SprintList, SprintTaskDistribution,
-    DemoGuide, FeatureHighlight
+    DemoGuide, FeatureHighlight, TaskDistributionSimulator
 )
 from database import get_project_by_id
 from demo_data import render_demo_section
@@ -57,8 +57,8 @@ def render_project_main_page():
         with col3:
             st.metric("생성일", project_info['created_at'][:10] if project_info['created_at'] else "")
     
-    # 탭으로 팀원 관리, 업무 관리, 스프린트 관리, 시뮬레이션 분리
-    tab1, tab2, tab3, tab4 = st.tabs(["👥 팀원 관리", "📋 업무 관리", "🚀 스프린트 관리", "🎯 시뮬레이션"])
+    # 탭으로 팀원 관리, 업무 관리, 스프린트 관리, 업무 분배, 시뮬레이션 분리
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["👥 팀원 관리", "📋 업무 관리", "🚀 스프린트 관리", "🎯 업무 분배", "📊 시뮬레이션"])
     
     with tab1:
         # H3 단계: 팀원 관리
@@ -103,7 +103,11 @@ def render_project_main_page():
         SprintList.render()
     
     with tab4:
-        # H5 단계: 시뮬레이션
+        # 새로운 업무 분배 시뮬레이션 (핵심 기능)
+        TaskDistributionSimulator.render()
+    
+    with tab5:
+        # 기존 시뮬레이션 (상세 분석용)
         SimulationRunner.render()
         st.markdown("---")
         SimulationResults.render()
