@@ -3,7 +3,8 @@
 import streamlit as st
 from components import (
     SystemStatus, DevelopmentTools, ProgressIndicator,
-    TeamMemberForm, TeamMemberList, TaskForm, TaskList
+    TeamMemberForm, TeamMemberList, TaskForm, TaskList,
+    SimulationRunner, SimulationResults, SimulationAnalysis
 )
 from database import get_project_by_id
 
@@ -12,7 +13,7 @@ def render_welcome_page():
     st.info("📁 사이드바에서 프로젝트를 선택하거나 새로 생성해주세요.")
     
     # 진행 상황 표시
-    ProgressIndicator.render("H2")
+    ProgressIndicator.render("H5")
     
     col1, col2 = st.columns(2)
     
@@ -25,10 +26,25 @@ def render_welcome_page():
         - SQLite 초기화 스크립트 작성
         - 모듈화된 파일 구조 완성
         
-        #### 🔄 H2. 팀원 입력 (진행중)
+        #### ✅ H2. 팀원 입력 (완료)
         - 프로젝트 선택 & 팀원 입력 화면
         - 팀원 입력 폼 + 테이블 표시
         - 모듈 분리 및 컴포넌트화
+        
+        #### ✅ H3. 업무 입력 (완료)
+        - 13개 필드 업무 관리 시스템
+        - 업무 입력/수정/삭제 CRUD
+        - 우선순위 및 담당자 지정
+        
+        #### ✅ H4. 업무 관리 (완료)
+        - 업무 상세 정보 관리
+        - 스토리 포인트 및 시간 추정
+        - 업무 연결성 및 AI 판단
+        
+        #### 🔄 H5. 시뮬레이션 (진행중)
+        - Round Robin 분배 알고리즘
+        - 팀원별 업무량 및 일정 계산
+        - 시뮬레이션 결과 분석
         """)
     
     with col2:
@@ -49,10 +65,13 @@ def render_welcome_page():
         
         ### 🚀 다음 개발 단계
         - ✅ H1: 환경 세팅 완료
-        - 🔄 H2: 팀원 입력 (현재)
-        - ⏳ H3: 업무 입력 화면
-        - ⏳ H4: 시뮬레이션 로직
-        - ⏳ H5: 결과 시각화
+        - ✅ H2: 팀원 입력 완료
+        - ✅ H3: 업무 입력 완료
+        - ✅ H4: 업무 관리 완료
+        - 🔄 H5: 시뮬레이션 (현재)
+        - ⏳ H6: 결과 시각화
+        - ⏳ H7: 데이터 내보내기
+        - ⏳ H8: 최종 완성
         """)
     
     # 시스템 상태 확인
@@ -67,7 +86,7 @@ def render_project_main_page():
     st.success("🎉 프로젝트가 선택되었습니다!")
     
     # 진행 상황 표시
-    ProgressIndicator.render("H4")
+    ProgressIndicator.render("H5")
     
     # 현재 프로젝트 정보
     project_info = get_project_by_id(st.session_state.current_project_id)
@@ -81,8 +100,8 @@ def render_project_main_page():
         with col3:
             st.metric("생성일", project_info['created_at'][:10] if project_info['created_at'] else "")
     
-    # 탭으로 팀원 관리와 업무 관리 분리
-    tab1, tab2 = st.tabs(["👥 팀원 관리", "📋 업무 관리"])
+    # 탭으로 팀원 관리, 업무 관리, 시뮬레이션 분리
+    tab1, tab2, tab3 = st.tabs(["👥 팀원 관리", "📋 업무 관리", "🎯 시뮬레이션"])
     
     with tab1:
         # H3 단계: 팀원 관리
@@ -108,14 +127,27 @@ def render_project_main_page():
         st.markdown("---")
         TaskList.render()
     
+    with tab3:
+        # H5 단계: 시뮬레이션
+        SimulationRunner.render()
+        st.markdown("---")
+        SimulationResults.render()
+        st.markdown("---")
+        SimulationAnalysis.render()
+    
     st.markdown("---")
     
     # 다음 단계 안내
     st.info("""
-    ### 📋 H3 단계 예정: 업무 입력 화면
-    - 업무명, 난이도(1~5), 예상 소요 시간 입력 폼
-    - 업무 목록 테이블 표시
-    - 업무 수정/삭제 기능
+    ### 🎯 H5 단계 진행중: 시뮬레이션 로직
+    - ✅ Round Robin 분배 알고리즘 구현
+    - ✅ 팀원별 총 소요시간, 예상 일정 계산
+    - ✅ 시뮬레이션 결과 분석 및 권장사항
+    
+    ### 📊 다음 단계 예정: H6 결과 시각화
+    - 간트 차트 시각화
+    - 팀원별 업무량 차트
+    - 프로젝트 타임라인 그래프
     """)
     
     # 개발 도구
