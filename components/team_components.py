@@ -71,62 +71,20 @@ class TeamMemberList:
             
             for i, member in enumerate(members):
                 with cols[i % 3]:
-                    # 다크 모드 대응 팀원 카드
-                    skill_level = member.get('skill_level', '중급')
-                    
+                    # 간단한 팀원 카드 (다크 모드 호환)
                     st.markdown(f"""
-                    <style>
-                    .member-card-{member['id']} {{
-                        border: 2px solid var(--text-color, #333333);
+                    <div style="
+                        border: 1px solid rgba(128, 128, 128, 0.5);
                         border-radius: 8px;
                         padding: 15px;
                         margin: 10px 0;
-                        background: var(--background-color, #ffffff);
-                        color: var(--text-color, #333333);
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                    }}
-                    
-                    /* 라이트 모드 */
-                    @media (prefers-color-scheme: light) {{
-                        .member-card-{member['id']} {{
-                            --background-color: {'#FFE4E1' if skill_level == '초급' else '#E6F3FF' if skill_level == '중급' else '#E6FFE6' if skill_level == '고급' else '#FFF2E6'};
-                            --text-color: #333333;
-                            --border-color: {'#CD5C5C' if skill_level == '초급' else '#4682B4' if skill_level == '중급' else '#228B22' if skill_level == '고급' else '#DAA520'};
-                            background-color: var(--background-color);
-                            color: var(--text-color);
-                            border-color: var(--border-color);
-                        }}
-                    }}
-                    
-                    /* 다크 모드 */
-                    @media (prefers-color-scheme: dark) {{
-                        .member-card-{member['id']} {{
-                            --background-color: {'#2D1B1B' if skill_level == '초급' else '#1B2D3D' if skill_level == '중급' else '#1B3D1B' if skill_level == '고급' else '#3D2D1B'};
-                            --text-color: #FFFFFF;
-                            --border-color: {'#CD5C5C' if skill_level == '초급' else '#87CEEB' if skill_level == '중급' else '#90EE90' if skill_level == '고급' else '#F0E68C'};
-                            background-color: var(--background-color);
-                            color: var(--text-color);
-                            border-color: var(--border-color);
-                            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                        }}
-                    }}
-                    
-                    .member-card-{member['id']} h4,
-                    .member-card-{member['id']} p,
-                    .member-card-{member['id']} strong {{
-                        color: inherit;
-                    }}
-                    
-                    .member-card-{member['id']} small {{
-                        opacity: 0.7;
-                    }}
-                    </style>
-                    
-                    <div class="member-card-{member['id']}">
-                        <h4 style="margin: 0 0 10px 0;">👤 {member['name']}</h4>
-                        <p style="margin: 5px 0;"><strong>역할:</strong> {member['role']}</p>
-                        <p style="margin: 5px 0;"><strong>가용시간:</strong> {member['available_hours_per_day']:.1f}시간/일</p>
-                        <p style="margin: 5px 0;"><small>등록일: {member['created_at'][:10] if member['created_at'] else ''}</small></p>
+                        background: rgba(0, 0, 0, 0.05);
+                        backdrop-filter: blur(5px);
+                    ">
+                        <h4 style="margin: 0 0 10px 0; color: inherit;">👤 {member['name']}</h4>
+                        <p style="margin: 5px 0; color: inherit;"><strong>역할:</strong> {member['role']}</p>
+                        <p style="margin: 5px 0; color: inherit;"><strong>가용시간:</strong> {member['available_hours_per_day']:.1f}시간/일</p>
+                        <p style="margin: 5px 0; color: inherit; opacity: 0.7;"><small>등록일: {member['created_at'][:10] if member['created_at'] else ''}</small></p>
                     </div>
                     """, unsafe_allow_html=True)
                     

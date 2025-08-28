@@ -149,17 +149,18 @@ class SimulationResults:
                 with cols[i % 3]:
                     st.markdown(f"""
                     <div style="
-                        border: 2px solid #4CAF50;
-                        border-radius: 10px;
+                        border: 1px solid rgba(128, 128, 128, 0.5);
+                        border-radius: 8px;
                         padding: 15px;
                         margin: 10px 0;
-                        background-color: #E8F5E8;
+                        background: rgba(0, 0, 0, 0.05);
+                        backdrop-filter: blur(5px);
                         text-align: center;
                     ">
-                        <h4>👤 {member}</h4>
-                        <p><strong>할당 업무:</strong> {data['count']}개</p>
-                        <p><strong>총 시간:</strong> {data['hours']:.1f}시간</p>
-                        <p><strong>예상 일수:</strong> {data['hours']/8:.1f}일</p>
+                        <h4 style="margin: 0 0 10px 0; color: inherit;">👤 {member}</h4>
+                        <p style="margin: 5px 0; color: inherit;"><strong>할당 업무:</strong> {data['count']}개</p>
+                        <p style="margin: 5px 0; color: inherit;"><strong>총 시간:</strong> {data['hours']:.1f}시간</p>
+                        <p style="margin: 5px 0; color: inherit;"><strong>예상 일수:</strong> {data['hours']/8:.1f}일</p>
                     </div>
                     """, unsafe_allow_html=True)
         else:
