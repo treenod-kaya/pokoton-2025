@@ -257,11 +257,14 @@ class RoundRobinSimulator:
                 assignment.start_day - 1  # start_day는 1부터 시작하므로
             )
             
-            # 종료일차를 실제 날짜로 변환 (업무일 기준)
-            task_end_date = KoreanHolidayCalendar.add_workdays(
-                sprint_start_workday,
-                assignment.end_day - 1  # end_day도 1부터 시작하므로
-            )
+            # 업무 소요 일수 계산
+            task_duration_days = assignment.end_day - assignment.start_day  # 0이면 당일, 1이면 2일
+            
+            # 종료일은 시작일에서 업무 소요 일수만큼 더함 (업무일 기준)
+            if task_duration_days > 0:
+                task_end_date = KoreanHolidayCalendar.add_workdays(task_start_date, task_duration_days)
+            else:
+                task_end_date = task_start_date  # 당일 완료
             
             # 할당 정보 업데이트
             assignment.start_date = task_start_date.strftime('%Y-%m-%d')

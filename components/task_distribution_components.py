@@ -237,17 +237,35 @@ class TaskDistributionViewer:
             st.markdown(f"#### 📅 {sprint_workload.sprint_name}")
             
             # 스프린트 정보
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4, col5 = st.columns(5)
             with col1:
                 st.metric("업무 수", f"{sprint_workload.total_tasks}개")
             with col2:
                 st.metric("총 시간", f"{sprint_workload.total_hours:.1f}h")
             with col3:
-                if sprint_workload.sprint_start_date and sprint_workload.sprint_end_date:
+                if sprint_workload.sprint_start_date:
+                    # 날짜 형식을 한국어로 변환
                     start_date = datetime.strptime(sprint_workload.sprint_start_date, '%Y-%m-%d')
+                    formatted_start = start_date.strftime('%m/%d')
+                    st.metric("시작일", formatted_start)
+                else:
+                    st.metric("시작일", "미정")
+            with col4:
+                if sprint_workload.sprint_end_date:
+                    # 날짜 형식을 한국어로 변환
                     end_date = datetime.strptime(sprint_workload.sprint_end_date, '%Y-%m-%d')
-                    duration = (end_date - start_date).days + 1
-                    st.metric("기간", f"{duration}일")
+                    formatted_end = end_date.strftime('%m/%d')
+                    st.metric("종료일", formatted_end)
+                else:
+                    st.metric("종료일", "미정")
+            with col5:
+                if sprint_workload.sprint_start_date and sprint_workload.sprint_end_date:
+                    start_date = datetime.strptime(sprint_workload.sprint_start_date, '%Y-%m-%d').date()
+                    end_date = datetime.strptime(sprint_workload.sprint_end_date, '%Y-%m-%d').date()
+                    workdays = KoreanHolidayCalendar.calculate_workdays_between(start_date, end_date)
+                    st.metric("영업일", f"{workdays}일")
+                else:
+                    st.metric("영업일", "미정")
             
             # 스프린트별 업무 필터링
             sprint_tasks = [a for a in result.round_robin_assignments 
@@ -324,8 +342,7 @@ class TaskDistributionViewer:
                         '우선순위': f"P{assignment.priority}",
                         '시작일': assignment.start_date,
                         '종료일': assignment.end_date,
-                        '전체기간': f"{task_total_days}일",
-                        '업무일': f"{task_workdays}일",
+                        '전체기간': f"{task_workdays}일 (영업일)",
                         '예상시간': f"{assignment.estimated_hours:.1f}h",
                         '일일시간': f"{daily_hours:.1f}h/일",
                         '공휴일': ', '.join(task_holidays) if task_holidays else '-',
