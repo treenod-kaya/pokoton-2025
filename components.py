@@ -43,8 +43,34 @@ def render_project_selector():
             
             with st.sidebar.container():
                 if is_selected:
+                    # 선택된 프로젝트 카드 (다크 모드 대응)
                     st.markdown(f"""
-                    <div style="border: 2px solid #1f77b4; border-radius: 8px; padding: 10px; margin: 5px 0; background-color: #e8f4f8;">
+                    <style>
+                    .selected-project-{project['id']} {{
+                        border: 2px solid #1f77b4;
+                        border-radius: 8px;
+                        padding: 10px;
+                        margin: 5px 0;
+                        background-color: #e8f4f8;
+                        color: #333333;
+                    }}
+                    
+                    /* 다크 모드 */
+                    @media (prefers-color-scheme: dark) {{
+                        .selected-project-{project['id']} {{
+                            background-color: #1a2332;
+                            color: #ffffff;
+                            border-color: #4da6ff;
+                        }}
+                    }}
+                    
+                    .selected-project-{project['id']} strong,
+                    .selected-project-{project['id']} small {{
+                        color: inherit;
+                    }}
+                    </style>
+                    
+                    <div class="selected-project-{project['id']}">
                         <strong>🟢 {project['name']}</strong><br/>
                         <small>팀원: {summary['team_count']}명 | 업무: {summary['task_count']}개</small>
                     </div>
@@ -198,24 +224,64 @@ def render_team_member_list():
         
         for i, member in enumerate(members):
             with cols[i % 3]:
-                # 숙련도별 색상 매핑
-                skill_colors = {
-                    "초급": "#FFE4E1",
-                    "중급": "#E6F3FF", 
-                    "고급": "#E6FFE6",
-                    "전문가": "#FFF2E6"
-                }
-                skill_color = skill_colors.get(member.get('skill_level', '중급'), "#F0F0F0")
+                # 다크 모드 대응 팀원 카드
+                skill_level = member.get('skill_level', '중급')
                 
-                # 팀원 카드
                 st.markdown(f"""
-                <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px 0; background-color: {skill_color};">
+                <style>
+                .member-card-{member['id']} {{
+                    border: 2px solid var(--text-color, #333333);
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin: 10px 0;
+                    background: var(--background-color, #ffffff);
+                    color: var(--text-color, #333333);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                
+                /* 라이트 모드 */
+                @media (prefers-color-scheme: light) {{
+                    .member-card-{member['id']} {{
+                        --background-color: {'#FFE4E1' if skill_level == '초급' else '#E6F3FF' if skill_level == '중급' else '#E6FFE6' if skill_level == '고급' else '#FFF2E6'};
+                        --text-color: #333333;
+                        --border-color: {'#CD5C5C' if skill_level == '초급' else '#4682B4' if skill_level == '중급' else '#228B22' if skill_level == '고급' else '#DAA520'};
+                        background-color: var(--background-color);
+                        color: var(--text-color);
+                        border-color: var(--border-color);
+                    }}
+                }}
+                
+                /* 다크 모드 */
+                @media (prefers-color-scheme: dark) {{
+                    .member-card-{member['id']} {{
+                        --background-color: {'#2D1B1B' if skill_level == '초급' else '#1B2D3D' if skill_level == '중급' else '#1B3D1B' if skill_level == '고급' else '#3D2D1B'};
+                        --text-color: #FFFFFF;
+                        --border-color: {'#CD5C5C' if skill_level == '초급' else '#87CEEB' if skill_level == '중급' else '#90EE90' if skill_level == '고급' else '#F0E68C'};
+                        background-color: var(--background-color);
+                        color: var(--text-color);
+                        border-color: var(--border-color);
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    }}
+                }}
+                
+                .member-card-{member['id']} h4,
+                .member-card-{member['id']} p,
+                .member-card-{member['id']} strong {{
+                    color: inherit;
+                }}
+                
+                .member-card-{member['id']} small {{
+                    opacity: 0.7;
+                }}
+                </style>
+                
+                <div class="member-card-{member['id']}">
                     <h4 style="margin: 0 0 10px 0;">👤 {member['name']}</h4>
                     <p style="margin: 5px 0;"><strong>역할:</strong> {member['role']}</p>
                     <p style="margin: 5px 0;"><strong>가용시간:</strong> {member['available_hours_per_day']:.1f}시간/일</p>
-                    <p style="margin: 5px 0;"><strong>숙련도:</strong> {member.get('skill_level', '중급')}</p>
+                    <p style="margin: 5px 0;"><strong>숙련도:</strong> {skill_level}</p>
                     <p style="margin: 5px 0;"><strong>비용:</strong> {member.get('hourly_cost', 5.0):.1f}만원/시간</p>
-                    <p style="margin: 5px 0; color: #666;"><small>등록일: {member['created_at'][:10] if member['created_at'] else ''}</small></p>
+                    <p style="margin: 5px 0;"><small>등록일: {member['created_at'][:10] if member['created_at'] else ''}</small></p>
                 </div>
                 """, unsafe_allow_html=True)
                 
