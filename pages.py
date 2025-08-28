@@ -3,7 +3,7 @@
 import streamlit as st
 from components import (
     SystemStatus, DevelopmentTools, ProgressIndicator,
-    TeamMemberForm, TeamMemberList, TaskForm, TaskList, TaskEditForm
+    TeamMemberForm, TeamMemberList, TaskForm, TaskList
 )
 from database import get_project_by_id
 
@@ -94,11 +94,18 @@ def render_project_main_page():
         # H4 단계: 업무 관리
         # 업무 수정 모드인지 확인
         if st.session_state.get('editing_task_id'):
-            TaskEditForm.render()
-            st.markdown("---")
+            from database import get_task_by_id
+            task_data = get_task_by_id(st.session_state.editing_task_id)
+            if task_data:
+                TaskForm.render(task_data=task_data, is_edit_mode=True)
+            else:
+                st.error("선택한 업무를 찾을 수 없습니다.")
+                del st.session_state.editing_task_id
+                st.rerun()
         else:
             TaskForm.render()
-            st.markdown("---")
+        
+        st.markdown("---")
         TaskList.render()
     
     st.markdown("---")

@@ -2,12 +2,12 @@
 
 from .project_components import ProjectSelector, ProjectInfo
 from .team_components import TeamMemberForm, TeamMemberList
-from .task_components import TaskForm, TaskList, TaskEditForm
+from .task_components import TaskForm, TaskList
 from .system_components import SystemStatus, DevelopmentTools, ProgressIndicator
 
 __all__ = [
     'ProjectSelector', 'ProjectInfo',
     'TeamMemberForm', 'TeamMemberList', 
-    'TaskForm', 'TaskList', 'TaskEditForm',
+    'TaskForm', 'TaskList',
     'SystemStatus', 'DevelopmentTools', 'ProgressIndicator'
 ]
