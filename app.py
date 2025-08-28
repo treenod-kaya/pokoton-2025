@@ -3,7 +3,7 @@
 import streamlit as st
 from config import STREAMLIT_CONFIG
 from init_db import initialize_database
-from components import render_project_selector, render_project_info
+from components import ProjectSelector, ProjectInfo
 from pages import render_welcome_page, render_project_main_page, render_error_page
 
 # 페이지 설정
@@ -34,8 +34,8 @@ def main():
     
     try:
         # 사이드바 - 프로젝트 관리
-        render_project_selector()
-        render_project_info()
+        ProjectSelector.render()
+        ProjectInfo.render()
         
         # 메인 컨텐츠 라우팅
         if st.session_state.current_project_id:

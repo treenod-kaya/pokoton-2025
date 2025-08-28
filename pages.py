@@ -2,9 +2,8 @@
 
 import streamlit as st
 from components import (
-    render_system_status, render_development_tools, 
-    render_progress_indicator, render_team_member_form, render_team_member_list,
-    render_task_form, render_task_list
+    SystemStatus, DevelopmentTools, ProgressIndicator,
+    TeamMemberForm, TeamMemberList, TaskForm, TaskList
 )
 from database import get_project_by_id
 
@@ -13,7 +12,7 @@ def render_welcome_page():
     st.info("📁 사이드바에서 프로젝트를 선택하거나 새로 생성해주세요.")
     
     # 진행 상황 표시
-    render_progress_indicator("H2")
+    ProgressIndicator.render("H2")
     
     col1, col2 = st.columns(2)
     
@@ -58,17 +57,17 @@ def render_welcome_page():
     
     # 시스템 상태 확인
     st.markdown("---")
-    render_system_status()
+    SystemStatus.render()
     
     # 개발 도구
-    render_development_tools()
+    DevelopmentTools.render()
 
 def render_project_main_page():
     """프로젝트 메인 페이지 (프로젝트 선택 후)"""
     st.success("🎉 프로젝트가 선택되었습니다!")
     
     # 진행 상황 표시
-    render_progress_indicator("H4")
+    ProgressIndicator.render("H4")
     
     # 현재 프로젝트 정보
     project_info = get_project_by_id(st.session_state.current_project_id)
@@ -87,15 +86,15 @@ def render_project_main_page():
     
     with tab1:
         # H3 단계: 팀원 관리
-        render_team_member_form()
+        TeamMemberForm.render()
         st.markdown("---")
-        render_team_member_list()
+        TeamMemberList.render()
     
     with tab2:
         # H4 단계: 업무 관리
-        render_task_form()
+        TaskForm.render()
         st.markdown("---")
-        render_task_list()
+        TaskList.render()
     
     st.markdown("---")
     
@@ -108,7 +107,7 @@ def render_project_main_page():
     """)
     
     # 개발 도구
-    render_development_tools()
+    DevelopmentTools.render()
 
 def render_h3_preview_page():
     """H3 단계 미리보기 페이지 (준비중)"""
