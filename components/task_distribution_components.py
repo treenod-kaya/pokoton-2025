@@ -340,6 +340,7 @@ class TaskDistributionViewer:
                         '업무명': assignment.task_name,
                         '담당자': assignment.assignee_name,
                         '우선순위': f"P{assignment.priority}",
+                        '스토리포인트': assignment.story_points,
                         '시작일': assignment.start_date,
                         '종료일': assignment.end_date,
                         '전체기간': f"{task_workdays}일 (영업일)",

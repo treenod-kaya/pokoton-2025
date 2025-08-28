@@ -22,6 +22,7 @@ class TaskAssignment:
     end_date: Optional[str] = None    # 실제 종료 날짜
     sprint_name: str = ""
     build_type: str = ""
+    story_points: int = 1  # 스토리 포인트
     
 @dataclass
 class TeamMemberWorkload:
@@ -173,7 +174,8 @@ class RoundRobinSimulator:
                 start_day=start_day,
                 end_day=end_day,
                 sprint_name=sprint_name,
-                build_type=task.get('build_type', '')
+                build_type=task.get('build_type', ''),
+                story_points=task.get('story_points_leader', 1)
             )
             
             assignments.append(assignment)
