@@ -448,7 +448,24 @@ def render_task_form():
         with col1:
             ai_judgment = st.text_input("AI 판단", placeholder="AI 분석 결과...", key="task_ai_judgment")
         with col2:
-            connectivity = st.text_input("업무 연결성", placeholder="관련 업무 ID나 설명...", key="task_connectivity")
+            # 현재 프로젝트의 기존 업무 목록 가져오기 (연결성 선택용)
+            existing_tasks = get_tasks(st.session_state.current_project_id)
+            task_options = ["연결 없음"] + [f"#{task['id']} - {task['item_name']}" for task in existing_tasks]
+            
+            selected_connectivity = st.selectbox(
+                "업무 연결성", 
+                options=task_options, 
+                index=0, 
+                key="task_connectivity",
+                help="이 업무와 연관된 다른 업무를 선택하세요"
+            )
+            
+            # 실제 저장할 connectivity 값 (ID만 추출)
+            if selected_connectivity == "연결 없음":
+                connectivity = ""
+            else:
+                # "#123 - 업무명" 형태에서 ID만 추출
+                connectivity = selected_connectivity.split(" - ")[0].replace("#", "")
         
         # 추가 버튼
         col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
@@ -503,7 +520,7 @@ def render_task_list():
                 "담당자예상": f"{task.get('duration_assignee', 0):.1f}h", 
                 "최종시간": f"{task.get('final_hours', 0):.1f}h",
                 "AI판단": task.get("ai_judgment", "")[:20] + "..." if len(task.get("ai_judgment", "")) > 20 else task.get("ai_judgment", ""),
-                "연결성": task.get("connectivity", ""),
+                "연결성": f"#{task.get('connectivity', '')}" if task.get('connectivity', '') else "없음",
                 "등록일": task["created_at"][:10] if task["created_at"] else ""
             } for task in tasks
         ])
