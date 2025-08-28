@@ -29,16 +29,8 @@ def render_welcome_page():
     with col2:
         st.info("📁 **시작하기**: 사이드바에서 프로젝트를 선택하거나 새로 생성해주세요.")
     
-    
-    # 데모 섹션 추가
-    render_demo_section()
-    
     # 추가 기능 하이라이트
     FeatureHighlight.render()
-    
-    # 완전한 데모 가이드
-    DemoGuide.render()
-    
 
 def render_project_main_page():
     """프로젝트 메인 페이지 (프로젝트 선택 후)"""
