@@ -1,0 +1,165 @@
+# init_db.py - SQLite 데이터베이스 초기화 스크립트
+
+import sqlite3
+import os
+from config import DATABASE_CONFIG
+
+def create_database():
+    """데이터베이스 파일 생성"""
+    db_path = DATABASE_CONFIG["db_path"]
+    
+    if os.path.exists(db_path):
+        print(f"기존 데이터베이스 파일 발견: {db_path}")
+        return
+    
+    # 빈 데이터베이스 파일 생성
+    conn = sqlite3.connect(db_path)
+    conn.close()
+    print(f"새 데이터베이스 파일 생성: {db_path}")
+
+def create_tables():
+    """데이터베이스 테이블 생성"""
+    db_path = DATABASE_CONFIG["db_path"]
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # 프로젝트 테이블
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    print(">> projects 테이블 생성 완룼")
+    
+    # 팀원 테이블
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS team_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            role TEXT NOT NULL,
+            available_hours_per_day REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+        )
+    ''')
+    print(">> team_members 테이블 생성 완룼")
+    
+    # 업무 테이블
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            difficulty INTEGER NOT NULL CHECK (difficulty >= 1 AND difficulty <= 5),
+            estimated_hours REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+        )
+    ''')
+    print(">> tasks 테이블 생성 완룼")
+    
+    conn.commit()
+    conn.close()
+
+def insert_sample_data():
+    """샘플 데이터 삽입 (선택사항)"""
+    db_path = DATABASE_CONFIG["db_path"]
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    try:
+        # 샘플 프로젝트
+        cursor.execute("INSERT INTO projects (name) VALUES (?)", ("샘플 프로젝트",))
+        project_id = cursor.lastrowid
+        
+        # 샘플 팀원
+        sample_members = [
+            (project_id, "김개발", "백엔드 개발자", 8.0),
+            (project_id, "박디자인", "UI/UX 디자이너", 7.0),
+            (project_id, "이기획", "프로덕트 매니저", 6.0)
+        ]
+        
+        cursor.executemany(
+            "INSERT INTO team_members (project_id, name, role, available_hours_per_day) VALUES (?, ?, ?, ?)",
+            sample_members
+        )
+        
+        # 샘플 업무
+        sample_tasks = [
+            (project_id, "로그인 기능 개발", 3, 16.0),
+            (project_id, "메인 페이지 디자인", 2, 12.0),
+            (project_id, "사용자 요구사항 분석", 2, 8.0)
+        ]
+        
+        cursor.executemany(
+            "INSERT INTO tasks (project_id, name, difficulty, estimated_hours) VALUES (?, ?, ?, ?)",
+            sample_tasks
+        )
+        
+        conn.commit()
+        print(">> 샘플 데이터 삽입 완료")
+        
+    except sqlite3.IntegrityError as e:
+        print(f">> 샘플 데이터가 이미 존재합니다: {e}")
+    
+    conn.close()
+
+def check_database_status():
+    """데이터베이스 상태 확인"""
+    db_path = DATABASE_CONFIG["db_path"]
+    
+    if not os.path.exists(db_path):
+        print(">> 데이터베이스 파일이 존재하지 않습니다.")
+        return False
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # 테이블 목록 확인
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    tables = cursor.fetchall()
+    
+    print(f">> 데이터베이스 상태: {db_path}")
+    print(f">> 테이블 수: {len(tables)}")
+    
+    for table in tables:
+        table_name = table[0]
+        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+        count = cursor.fetchone()[0]
+        print(f"  - {table_name}: {count}개 레코드")
+    
+    conn.close()
+    return True
+
+def initialize_database(with_sample_data=False):
+    """전체 데이터베이스 초기화 프로세스"""
+    print(">> 데이터베이스 초기화 시작...")
+    
+    # 1. 데이터베이스 파일 생성
+    create_database()
+    
+    # 2. 테이블 생성
+    create_tables()
+    
+    # 3. 샘플 데이터 삽입 (선택)
+    if with_sample_data:
+        insert_sample_data()
+    
+    # 4. 상태 확인
+    check_database_status()
+    
+    print(">> 데이터베이스 초기화 완료!")
+
+if __name__ == "__main__":
+    # 스크립트 직접 실행 시
+    import sys
+    
+    with_sample = "--with-sample" in sys.argv
+    initialize_database(with_sample_data=with_sample)
+    
+    print(f"\n>> 사용법:")
+    print(f"  기본 초기화: python init_db.py")
+    print(f"  샘플 데이터 포함: python init_db.py --with-sample")
