@@ -33,7 +33,7 @@ class TeamMemberForm:
                     key="member_role"
                 )
             
-            row2_col1, row2_col2, row2_col3 = st.columns(3)
+            row2_col1, row2_col2 = st.columns([1, 2])
             with row2_col1:
                 member_hours = st.number_input(
                     "일일 가용시간", 
@@ -43,23 +43,6 @@ class TeamMemberForm:
                     step=0.5,
                     key="member_hours",
                     help="하루에 이 프로젝트에 투입 가능한 시간"
-                )
-            with row2_col2:
-                member_skill = st.selectbox(
-                    "숙련도",
-                    options=["초급", "중급", "고급", "전문가"],
-                    index=1,  # 중급이 기본값
-                    key="member_skill"
-                )
-            with row2_col3:
-                member_cost = st.number_input(
-                    "시간당 비용 (만원)",
-                    min_value=0.0,
-                    max_value=50.0,
-                    value=5.0,
-                    step=0.5,
-                    key="member_cost",
-                    help="시간당 인건비 (만원 단위)"
                 )
             
             # 추가 버튼
@@ -72,9 +55,7 @@ class TeamMemberForm:
                                 st.session_state.current_project_id, 
                                 member_name.strip(), 
                                 member_role, 
-                                member_hours,
-                                member_skill,
-                                member_cost
+                                member_hours
                             )
                             st.success(f"✅ 팀원 '{member_name}'({member_role})가 추가되었습니다!")
                             st.rerun()
@@ -154,8 +135,6 @@ class TeamMemberList:
                         <h4 style="margin: 0 0 10px 0;">👤 {member['name']}</h4>
                         <p style="margin: 5px 0;"><strong>역할:</strong> {member['role']}</p>
                         <p style="margin: 5px 0;"><strong>가용시간:</strong> {member['available_hours_per_day']:.1f}시간/일</p>
-                        <p style="margin: 5px 0;"><strong>숙련도:</strong> {skill_level}</p>
-                        <p style="margin: 5px 0;"><strong>비용:</strong> {member.get('hourly_cost', 5.0):.1f}만원/시간</p>
                         <p style="margin: 5px 0;"><small>등록일: {member['created_at'][:10] if member['created_at'] else ''}</small></p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -172,18 +151,12 @@ class TeamMemberList:
             
             # 팀 요약 정보
             total_hours = sum(m['available_hours_per_day'] for m in members)
-            total_cost = sum(m.get('hourly_cost', 5.0) * m['available_hours_per_day'] for m in members)
             
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2 = st.columns(2)
             with col1:
                 st.metric("총 팀원 수", f"{len(members)}명")
             with col2:
                 st.metric("일일 총 가용시간", f"{total_hours:.1f}시간")
-            with col3:
-                st.metric("일일 총 비용", f"{total_cost:.1f}만원")
-            with col4:
-                avg_skill = len([m for m in members if m.get('skill_level') in ['고급', '전문가']]) / len(members) * 100
-                st.metric("고급 인력 비율", f"{avg_skill:.0f}%")
                 
             # 테이블 형태도 제공 (토글)
             with st.expander("📊 상세 테이블 보기"):
@@ -192,10 +165,7 @@ class TeamMemberList:
                         "ID": m["id"],
                         "팀원명": m["name"],
                         "역할": m["role"],
-                        "숙련도": m.get('skill_level', '중급'),
                         "일일 가용시간": f"{m['available_hours_per_day']:.1f}h",
-                        "시간당 비용": f"{m.get('hourly_cost', 5.0):.1f}만원",
-                        "일일 총 비용": f"{m.get('hourly_cost', 5.0) * m['available_hours_per_day']:.1f}만원",
                         "등록일": m["created_at"][:10] if m["created_at"] else ""
                     } for m in members
                 ])

@@ -162,7 +162,7 @@ def render_team_member_form():
                 key="member_role"
             )
         
-        row2_col1, row2_col2, row2_col3 = st.columns(3)
+        row2_col1, row2_col2 = st.columns([1, 2])
         with row2_col1:
             member_hours = st.number_input(
                 "일일 가용시간", 
@@ -172,23 +172,6 @@ def render_team_member_form():
                 step=0.5,
                 key="member_hours",
                 help="하루에 이 프로젝트에 투입 가능한 시간"
-            )
-        with row2_col2:
-            member_skill = st.selectbox(
-                "숙련도",
-                options=["초급", "중급", "고급", "전문가"],
-                index=1,  # 중급이 기본값
-                key="member_skill"
-            )
-        with row2_col3:
-            member_cost = st.number_input(
-                "시간당 비용 (만원)",
-                min_value=0.0,
-                max_value=50.0,
-                value=5.0,
-                step=0.5,
-                key="member_cost",
-                help="시간당 인건비 (만원 단위)"
             )
         
         # 추가 버튼
@@ -201,9 +184,7 @@ def render_team_member_form():
                             st.session_state.current_project_id, 
                             member_name.strip(), 
                             member_role, 
-                            member_hours,
-                            member_skill,
-                            member_cost
+                            member_hours
                         )
                         st.success(f"✅ 팀원 '{member_name}'({member_role})가 추가되었습니다!")
                         st.rerun()

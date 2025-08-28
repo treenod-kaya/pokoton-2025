@@ -236,27 +236,17 @@ def delete_sprint(sprint_id: int) -> bool:
     return True
 
 # 팀원 관련 함수들
-def add_team_member(project_id: int, name: str, role: str, available_hours_per_day: float, skill_level: str = "중급", hourly_cost: float = 5.0) -> int:
-    """팀원 추가 (H3 개선: 숙련도, 비용 추가)"""
+def add_team_member(project_id: int, name: str, role: str, available_hours_per_day: float) -> int:
+    """팀원 추가"""
     if not validate_team_member(name, role, available_hours_per_day):
         raise ValueError("유효하지 않은 팀원 정보입니다.")
     
-    # 기존 테이블에 새 컬럼이 없으면 기본 필드만 사용
-    try:
-        member_id = db.execute_query(
-            '''INSERT INTO team_members (project_id, name, role, available_hours_per_day, skill_level, hourly_cost)
-               VALUES (?, ?, ?, ?, ?, ?)''',
-            (project_id, name.strip(), role.strip(), available_hours_per_day, skill_level, hourly_cost),
-            fetch="lastrowid"
-        )
-    except:
-        # 기존 테이블 구조 사용 (fallback)
-        member_id = db.execute_query(
-            '''INSERT INTO team_members (project_id, name, role, available_hours_per_day)
-               VALUES (?, ?, ?, ?)''',
-            (project_id, name.strip(), role.strip(), available_hours_per_day),
-            fetch="lastrowid"
-        )
+    member_id = db.execute_query(
+        '''INSERT INTO team_members (project_id, name, role, available_hours_per_day)
+           VALUES (?, ?, ?, ?)''',
+        (project_id, name.strip(), role.strip(), available_hours_per_day),
+        fetch="lastrowid"
+    )
     return member_id
 
 def get_team_members(project_id: int) -> List[Dict]:
