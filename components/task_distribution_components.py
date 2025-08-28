@@ -262,7 +262,107 @@ class TaskDistributionViewer:
                           if a.sprint_name == sprint_workload.sprint_name and a.start_date and a.end_date]
             
             if sprint_tasks:
-                # 스프린트 내 업무 타임라인
+                # 디버깅 정보 표시
+                st.markdown("**🔍 일정 분배 분석 (공휴일/주말 제외 검증)**")
+                
+                # 스프린트 기간 분석
+                if sprint_workload.sprint_start_date and sprint_workload.sprint_end_date:
+                    sprint_start = datetime.strptime(sprint_workload.sprint_start_date, '%Y-%m-%d').date()
+                    sprint_end = datetime.strptime(sprint_workload.sprint_end_date, '%Y-%m-%d').date()
+                    
+                    total_days = (sprint_end - sprint_start).days + 1
+                    workdays = KoreanHolidayCalendar.calculate_workdays_between(sprint_start, sprint_end)
+                    holidays = []
+                    weekends = []
+                    
+                    # 공휴일과 주말 목록 생성
+                    current_date = sprint_start
+                    while current_date <= sprint_end:
+                        if KoreanHolidayCalendar.is_holiday(current_date):
+                            holiday_name = KoreanHolidayCalendar.get_holiday_name(current_date)
+                            holidays.append(f"{current_date.strftime('%m/%d')} ({holiday_name})")
+                        elif KoreanHolidayCalendar.is_weekend(current_date):
+                            weekday = ['월', '화', '수', '목', '금', '토', '일'][current_date.weekday()]
+                            weekends.append(f"{current_date.strftime('%m/%d')} ({weekday})")
+                        current_date += timedelta(days=1)
+                    
+                    # 스프린트 기간 정보
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("전체 기간", f"{total_days}일")
+                    with col2:
+                        st.metric("업무일", f"{workdays}일", delta=f"-{total_days-workdays}일")
+                    with col3:
+                        st.metric("공휴일", f"{len(holidays)}일")
+                    with col4:
+                        st.metric("주말", f"{len(weekends)}일")
+                    
+                    if holidays:
+                        st.info(f"🏮 **공휴일**: {', '.join(holidays)}")
+                    if weekends:
+                        st.info(f"📅 **주말**: {', '.join(weekends[:5])}{'...' if len(weekends) > 5 else ''}")
+                
+                # 업무별 상세 분석
+                st.markdown("**📋 업무별 일정 분석**")
+                
+                analysis_data = []
+                for assignment in sprint_tasks:
+                    start_date = datetime.strptime(assignment.start_date, '%Y-%m-%d').date()
+                    end_date = datetime.strptime(assignment.end_date, '%Y-%m-%d').date()
+                    
+                    # 업무 기간 분석
+                    task_total_days = (end_date - start_date).days + 1
+                    task_workdays = KoreanHolidayCalendar.calculate_workdays_between(start_date, end_date)
+                    daily_hours = assignment.estimated_hours / max(1, task_workdays)  # 0으로 나누기 방지
+                    
+                    # 업무 기간 중 공휴일/주말 체크
+                    task_holidays = []
+                    task_weekends = []
+                    current_date = start_date
+                    while current_date <= end_date:
+                        if KoreanHolidayCalendar.is_holiday(current_date):
+                            task_holidays.append(current_date.strftime('%m/%d'))
+                        elif KoreanHolidayCalendar.is_weekend(current_date):
+                            task_weekends.append(current_date.strftime('%m/%d'))
+                        current_date += timedelta(days=1)
+                    
+                    analysis_data.append({
+                        '업무명': assignment.task_name,
+                        '담당자': assignment.assignee_name,
+                        '우선순위': f"P{assignment.priority}",
+                        '시작일': assignment.start_date,
+                        '종료일': assignment.end_date,
+                        '전체기간': f"{task_total_days}일",
+                        '업무일': f"{task_workdays}일",
+                        '예상시간': f"{assignment.estimated_hours:.1f}h",
+                        '일일시간': f"{daily_hours:.1f}h/일",
+                        '공휴일': ', '.join(task_holidays) if task_holidays else '-',
+                        '주말': ', '.join(task_weekends) if task_weekends else '-',
+                        '비고': '⚠️ 시간부족' if daily_hours > 8 else '✅ 적정' if daily_hours > 0 else '❌ 오류'
+                    })
+                
+                # 분석 테이블 표시
+                df_analysis = pd.DataFrame(analysis_data)
+                st.dataframe(df_analysis, use_container_width=True)
+                
+                # 문제점 분석
+                issues = []
+                for data in analysis_data:
+                    if '⚠️' in data['비고']:
+                        issues.append(f"• {data['업무명']}: 일일 {data['일일시간']} (8시간 초과)")
+                    elif '❌' in data['비고']:
+                        issues.append(f"• {data['업무명']}: 일정 오류 발생")
+                
+                if issues:
+                    st.error("**🚨 일정 분배 문제점:**")
+                    for issue in issues:
+                        st.markdown(issue)
+                else:
+                    st.success("**✅ 일정 분배가 적절합니다!**")
+                
+                # 간단한 타임라인 (디버깅용)
+                st.markdown("**📊 간단 타임라인 (검증용)**")
+                
                 task_data = []
                 for assignment in sprint_tasks:
                     task_data.append({
@@ -282,7 +382,7 @@ class TaskDistributionViewer:
                     x_end='Finish',
                     y='Task',
                     color='Assignee',
-                    title=f"{sprint_workload.sprint_name} 업무 타임라인",
+                    title=f"{sprint_workload.sprint_name} 업무 타임라인 (검증용)",
                     hover_data=['Priority', 'Hours']
                 )
                 
