@@ -128,12 +128,19 @@ class TaskForm:
                     else:
                         build_type = selected_build
             with col3:
-                part_options = ["기획", "클라이언트", "애니메이터", "프로젝트 매니저", "크리에이티브", "기타"]
-                if is_edit_mode and task_data:
-                    default_part_index = part_options.index(task_data['part_division']) if task_data['part_division'] in part_options else 0
+                # 담당자에 따른 자동 파트 구분 설정
+                if assignee == "미지정":
+                    part_division = "기타"
+                    st.text_input("파트 구분", value=part_division, disabled=True, key=f"{form_key_prefix}task_part_division_display", help="담당자를 선택하면 자동으로 설정됩니다")
                 else:
-                    default_part_index = 0
-                part_division = st.selectbox("파트 구분", options=part_options, index=default_part_index, key=f"{form_key_prefix}task_part_division")
+                    # 선택된 담당자의 역할 찾기
+                    selected_member = next((m for m in team_members if m["name"] == assignee), None)
+                    if selected_member:
+                        part_division = selected_member["role"]
+                    else:
+                        part_division = "기타"
+                    
+                    st.text_input("파트 구분", value=part_division, disabled=True, key=f"{form_key_prefix}task_part_division_display", help=f"담당자 '{assignee}'의 역할로 자동 설정됨")
             
             # 세 번째 행: 상세 내용
             default_content = task_data['content'] if is_edit_mode and task_data else ""
