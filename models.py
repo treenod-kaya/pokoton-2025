@@ -31,6 +31,7 @@ class TeamMember:
     name: str = ""
     role: str = ""
     available_hours_per_day: float = 8.0
+    profile_icon_index: int = 0  # 프로필 아이콘 인덱스 (0-9)
     created_at: Optional[datetime] = None
 
 @dataclass

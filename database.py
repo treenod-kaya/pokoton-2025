@@ -241,10 +241,14 @@ def add_team_member(project_id: int, name: str, role: str, available_hours_per_d
     if not validate_team_member(name, role, available_hours_per_day):
         raise ValueError("유효하지 않은 팀원 정보입니다.")
     
+    # 랜덤 아이콘 인덱스 생성
+    from utils.icon_generator import get_random_icon_index
+    icon_index = get_random_icon_index()
+    
     member_id = db.execute_query(
-        '''INSERT INTO team_members (project_id, name, role, available_hours_per_day)
-           VALUES (?, ?, ?, ?)''',
-        (project_id, name.strip(), role.strip(), available_hours_per_day),
+        '''INSERT INTO team_members (project_id, name, role, available_hours_per_day, profile_icon_index)
+           VALUES (?, ?, ?, ?, ?)''',
+        (project_id, name.strip(), role.strip(), available_hours_per_day, icon_index),
         fetch="lastrowid"
     )
     return member_id
@@ -252,7 +256,7 @@ def add_team_member(project_id: int, name: str, role: str, available_hours_per_d
 def get_team_members(project_id: int) -> List[Dict]:
     """프로젝트의 팀원 목록 조회"""
     rows = db.execute_query(
-        '''SELECT id, name, role, available_hours_per_day, created_at
+        '''SELECT id, name, role, available_hours_per_day, profile_icon_index, created_at
            FROM team_members
            WHERE project_id = ?
            ORDER BY created_at''',
@@ -265,7 +269,8 @@ def get_team_members(project_id: int) -> List[Dict]:
         "name": row[1],
         "role": row[2],
         "available_hours_per_day": row[3],
-        "created_at": row[4]
+        "profile_icon_index": row[4] if len(row) > 4 else 0,  # 기본값 0
+        "created_at": row[5] if len(row) > 5 else row[4]  # 호환성 유지
     } for row in rows or []]
 
 def delete_team_member(member_id: int) -> bool:

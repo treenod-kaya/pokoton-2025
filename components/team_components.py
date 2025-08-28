@@ -71,6 +71,14 @@ class TeamMemberList:
             
             for i, member in enumerate(members):
                 with cols[i % 3]:
+                    # 커스텀 아이콘 생성
+                    from utils.icon_generator import ProfileIconGenerator
+                    icon_html = ProfileIconGenerator.get_icon_html(
+                        member.get('profile_icon_index', 0), 
+                        member['name'], 
+                        size=28
+                    )
+                    
                     # 간단한 팀원 카드 (다크 모드 호환)
                     st.markdown(f"""
                     <div style="
@@ -81,7 +89,9 @@ class TeamMemberList:
                         background: rgba(0, 0, 0, 0.05);
                         backdrop-filter: blur(5px);
                     ">
-                        <h4 style="margin: 0 0 10px 0; color: inherit;">👤 {member['name']}</h4>
+                        <h4 style="margin: 0 0 10px 0; color: inherit; display: flex; align-items: center;">
+                            {icon_html}{member['name']}
+                        </h4>
                         <p style="margin: 5px 0; color: inherit;"><strong>역할:</strong> {member['role']}</p>
                         <p style="margin: 5px 0; color: inherit;"><strong>가용시간:</strong> {member['available_hours_per_day']:.1f}시간/일</p>
                         <p style="margin: 5px 0; color: inherit; opacity: 0.7;"><small>등록일: {member['created_at'][:10] if member['created_at'] else ''}</small></p>

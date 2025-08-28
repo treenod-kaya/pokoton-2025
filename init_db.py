@@ -58,6 +58,7 @@ def create_tables():
             name TEXT NOT NULL,
             role TEXT NOT NULL,
             available_hours_per_day REAL NOT NULL,
+            profile_icon_index INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
         )
@@ -87,6 +88,14 @@ def create_tables():
         )
     ''')
     print(">> tasks 테이블 생성 완료")
+    
+    # 기존 테이블에 새 컬럼 추가 (마이그레이션)
+    try:
+        cursor.execute('ALTER TABLE team_members ADD COLUMN profile_icon_index INTEGER DEFAULT 0')
+        print(">> team_members 테이블에 profile_icon_index 컬럼 추가 완료")
+    except sqlite3.OperationalError:
+        # 컬럼이 이미 존재하는 경우
+        pass
     
     conn.commit()
     conn.close()
