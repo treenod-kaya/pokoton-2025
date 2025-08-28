@@ -77,100 +77,132 @@ class SimulationResults:
     
     @staticmethod
     def render():
-        """시뮬레이션 결과 UI"""
+        """시뮬레이션 결과 UI (간소화)"""
         if 'simulation_result' not in st.session_state:
             st.info("📊 시뮬레이션을 먼저 실행해주세요.")
             return
         
         result = st.session_state.simulation_result
-        summary = get_simulation_summary(result)
         
-        st.header("📊 시뮬레이션 결과")
+        st.header("🎯 자동 업무 분배 결과")
         
-        # 결과 요약
-        st.subheader("📈 프로젝트 요약")
-        col1, col2, col3, col4 = st.columns(4)
+        # 핵심 결과 요약 (간소화)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric("예상 완료일", f"{result.estimated_completion_days}일")
+            st.metric("📋 총 업무", f"{result.total_tasks}개")
         with col2:
-            st.metric("전체 업무", f"{result.total_tasks}개")
+            st.metric("⏱️ 총 예상시간", f"{result.total_estimated_hours:.1f}시간")
         with col3:
-            st.metric("총 예상시간", f"{result.total_estimated_hours:.1f}h")
-        with col4:
-            st.metric("평균 활용률", f"{summary['average_utilization']}%")
+            # 실제 완료 예상일 계산 (가장 마지막 업무 완료일)
+            if result.round_robin_assignments:
+                latest_end = max([a.end_date for a in result.round_robin_assignments if a.end_date])
+                st.metric("📅 완료 예상일", latest_end if latest_end else "미정")
+            else:
+                st.metric("📅 완료 예상일", "미정")
         
-        # 팀원별 업무 분배 결과
-        st.subheader("👥 팀원별 업무 분배")
+        # 핵심 기능: 팀원별 업무 분배 테이블
+        st.subheader("👥 자동 업무 분배 결과")
         
-        # 팀원별 워크로드 테이블
-        workload_data = []
-        for workload in result.team_workloads:
-            workload_data.append({
-                "팀원": workload.member_name,
-                "역할": workload.role,
-                "일일가용시간": f"{workload.daily_capacity:.1f}h",
-                "할당된업무수": len(workload.assigned_tasks),
-                "총할당시간": f"{workload.total_assigned_hours:.1f}h",
-                "예상소요일": f"{workload.estimated_days}일",
-                "활용률": f"{workload.utilization_rate:.1f}%"
-            })
+        if result.round_robin_assignments:
+            # 분배 결과를 깔끔한 테이블로 표시
+            assignment_data = []
+            for assignment in result.round_robin_assignments:
+                assignment_data.append({
+                    "📋 업무명": assignment.task_name,
+                    "👤 담당자": assignment.assignee_name,
+                    "⏱️ 예상시간": f"{assignment.estimated_hours:.1f}h",
+                    "🔢 우선순위": assignment.priority,
+                    "📅 시작일": assignment.start_date if assignment.start_date else f"Day {assignment.start_day}",
+                    "📅 완료일": assignment.end_date if assignment.end_date else f"Day {assignment.end_day}",
+                    "🚀 스프린트": assignment.sprint_name or "미분류"
+                })
+            
+            df_assignments = pd.DataFrame(assignment_data)
+            
+            # 우선순위 순으로 정렬하여 표시
+            df_sorted = df_assignments.sort_values(['🔢 우선순위', '👤 담당자'])
+            
+            st.dataframe(
+                df_sorted,
+                use_container_width=True,
+                hide_index=True,
+                height=min(400, len(df_sorted) * 35 + 50)
+            )
+            
+            # 팀원별 요약 통계
+            st.subheader("📊 팀원별 업무량 요약")
+            
+            team_summary = {}
+            for assignment in result.round_robin_assignments:
+                assignee = assignment.assignee_name
+                if assignee not in team_summary:
+                    team_summary[assignee] = {"count": 0, "hours": 0.0, "tasks": []}
+                
+                team_summary[assignee]["count"] += 1
+                team_summary[assignee]["hours"] += assignment.estimated_hours
+                team_summary[assignee]["tasks"].append(assignment.task_name)
+            
+            # 팀원별 카드 형태로 표시
+            cols = st.columns(min(len(team_summary), 3))
+            for i, (member, data) in enumerate(team_summary.items()):
+                with cols[i % 3]:
+                    st.markdown(f"""
+                    <div style="
+                        border: 2px solid #4CAF50;
+                        border-radius: 10px;
+                        padding: 15px;
+                        margin: 10px 0;
+                        background-color: #E8F5E8;
+                        text-align: center;
+                    ">
+                        <h4>👤 {member}</h4>
+                        <p><strong>할당 업무:</strong> {data['count']}개</p>
+                        <p><strong>총 시간:</strong> {data['hours']:.1f}시간</p>
+                        <p><strong>예상 일수:</strong> {data['hours']/8:.1f}일</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.warning("분배된 업무가 없습니다.")
         
-        if workload_data:
-            workload_df = pd.DataFrame(workload_data)
-            st.dataframe(workload_df, hide_index=True, use_container_width=True)
+        # 분배 알고리즘 설명
+        with st.expander("🤖 자동 분배 알고리즘 정보"):
+            st.markdown("""
+            ### 📊 Round Robin + 우선순위 기반 분배
+            
+            **1단계**: 우선순위 정렬
+            - 우선순위 낮은 숫자 (1) → 높은 숫자 (5) 순
+            - 동일 우선순위시 스토리 포인트 높은 순
+            - 모든 조건 동일시 랜덤
+            
+            **2단계**: Round Robin 분배
+            - 팀원들에게 순서대로 공정하게 분배
+            - 각 팀원의 가용시간 고려
+            
+            **3단계**: 날짜 계산
+            - 스프린트 시작일 기준
+            - 주말(토,일) 자동 제외
+            - 한국 공휴일 자동 제외
+            """)
+            
+        # 간단한 분배 균형도 표시
+        if result.team_workloads:
+            hours_list = [w.total_assigned_hours for w in result.team_workloads]
+            if hours_list and max(hours_list) > 0:
+                balance_ratio = (min(hours_list) / max(hours_list)) * 100
+                
+                st.subheader("⚖️ 분배 균형도")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("최대 할당", f"{max(hours_list):.1f}h")
+                with col2:
+                    st.metric("최소 할당", f"{min(hours_list):.1f}h") 
+                with col3:
+                    color = "🟢" if balance_ratio >= 80 else "🟡" if balance_ratio >= 60 else "🔴"
+                    st.metric("균형도", f"{color} {balance_ratio:.1f}%")
         
-        # 업무 할당 상세 결과
-        st.subheader("📋 업무 할당 상세")
-        
-        # 할당 결과 테이블
-        assignment_data = []
-        for assignment in result.round_robin_assignments:
-            assignment_data.append({
-                "업무ID": assignment.task_id,
-                "업무명": assignment.task_name,
-                "담당자": assignment.assignee_name,
-                "우선순위": assignment.priority,
-                "예상시간": f"{assignment.estimated_hours:.1f}h",
-                "시작일": f"{assignment.start_day}일차",
-                "완료일": f"{assignment.end_day}일차",
-                "소요일수": f"{assignment.end_day - assignment.start_day + 1}일"
-            })
-        
-        if assignment_data:
-            assignment_df = pd.DataFrame(assignment_data)
-            st.dataframe(assignment_df, hide_index=True, use_container_width=True)
-        
-        # 팀원별 상세 업무 목록
-        st.subheader("🔍 팀원별 상세 업무")
-        
-        for workload in result.team_workloads:
-            with st.expander(f"👤 {workload.member_name} ({workload.role}) - {len(workload.assigned_tasks)}개 업무"):
-                if workload.assigned_tasks:
-                    member_tasks = []
-                    for task in workload.assigned_tasks:
-                        member_tasks.append({
-                            "업무명": task.task_name,
-                            "우선순위": task.priority,
-                            "예상시간": f"{task.estimated_hours:.1f}h",
-                            "일정": f"{task.start_day}일차 ~ {task.end_day}일차"
-                        })
-                    
-                    member_df = pd.DataFrame(member_tasks)
-                    st.dataframe(member_df, hide_index=True, use_container_width=True)
-                    
-                    # 팀원별 통계
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("총 할당시간", f"{workload.total_assigned_hours:.1f}h")
-                    with col2:
-                        st.metric("예상 소요일", f"{workload.estimated_days}일")
-                    with col3:
-                        st.metric("활용률", f"{workload.utilization_rate:.1f}%")
-                else:
-                    st.info("할당된 업무가 없습니다.")
-        
-        # 시뮬레이션 초기화 버튼
+        # 시뮬레이션 재실행 버튼
         st.markdown("---")
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:

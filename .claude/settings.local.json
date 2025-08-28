@@ -5,7 +5,8 @@
       "Bash(python init_db.py --with-sample)",
       "Bash(python init_db.py --drop-and-recreate)",
       "Bash(del pokoton.db)",
-      "Bash(python -c \"\nimport sqlite3\nconn = sqlite3.connect(''pokoton.db'')\ncursor = conn.cursor()\ncursor.execute(''SELECT name, start_date, end_date FROM sprints LIMIT 5'')\nresults = cursor.fetchall()\nfor row in results:\n    print(f''Sprint: {row[0]}, Start: {row[1]}, End: {row[2]}'')\nconn.close()\n\")"
+      "Bash(python -c \"\nimport sqlite3\nconn = sqlite3.connect(''pokoton.db'')\ncursor = conn.cursor()\ncursor.execute(''SELECT name, start_date, end_date FROM sprints LIMIT 5'')\nresults = cursor.fetchall()\nfor row in results:\n    print(f''Sprint: {row[0]}, Start: {row[1]}, End: {row[2]}'')\nconn.close()\n\")",
+      "Bash(python test_simulation_data.py)"
     ],
     "deny": [],
     "ask": []
