@@ -100,7 +100,7 @@ class TeamMemberList:
                     hire_date_value = member.get('hire_date')
                     
                     if (hire_date_value and 
-                        hire_date_value != 'None' and 
+                        hire_date_value != 'None' and
                         str(hire_date_value).strip() and
                         str(hire_date_value).strip().lower() != 'none'):
                         from datetime import date, datetime

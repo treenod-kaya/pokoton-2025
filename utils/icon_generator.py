@@ -79,8 +79,8 @@ class ProfileIconGenerator:
     @classmethod  
     def get_icon_base64(cls, index: int, name: str = "U") -> str:
         """Base64 인코딩된 아이콘 반환 (로컬 이미지 우선, SVG 폴백)"""
-        # 1-4번 인덱스는 로컬 이미지 우선 시도
-        if 0 <= index <= 3:
+        # 0-4번 인덱스는 로컬 이미지 우선 시도
+        if 0 <= index <= 4:
             image_path = cls._get_local_image_path(index)
             if image_path:
                 base64_data = cls._image_to_base64(image_path)
