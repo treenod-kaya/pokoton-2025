@@ -96,14 +96,16 @@ class KoreanHolidayCalendar:
     @classmethod
     def add_workdays(cls, start_date: date, workdays: int) -> date:
         """업무일 기준으로 날짜 추가"""
+        if workdays == 0:
+            return start_date
+            
         current_date = start_date
         days_added = 0
         
         while days_added < workdays:
-            if cls.is_workday(current_date):
+            current_date += timedelta(days=1)  # 다음 날로 이동
+            if cls.is_workday(current_date):   # 업무일이면 카운트
                 days_added += 1
-            if days_added < workdays:  # 마지막 날이 아니면 다음날로
-                current_date += timedelta(days=1)
         
         return current_date
     
