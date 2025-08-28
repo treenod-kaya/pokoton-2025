@@ -4,7 +4,7 @@ import streamlit as st
 from components import (
     SystemStatus, DevelopmentTools, ProgressIndicator,
     TeamMemberForm, TeamMemberList, TaskForm, TaskList,
-    SimulationRunner, SimulationResults, SimulationAnalysis, SimulationVisualization,
+    SimulationRunner, SimulationResults, SimulationAnalysis, SimulationVisualization, SimulationExport,
     SprintForm, SprintList, SprintTaskDistribution
 )
 from database import get_project_by_id
@@ -14,7 +14,7 @@ def render_welcome_page():
     st.info("📁 사이드바에서 프로젝트를 선택하거나 새로 생성해주세요.")
     
     # 진행 상황 표시
-    ProgressIndicator.render("H5")
+    ProgressIndicator.render("H7")
     
     col1, col2 = st.columns(2)
     
@@ -42,10 +42,20 @@ def render_welcome_page():
         - 스토리 포인트 및 시간 추정
         - 업무 연결성 및 AI 판단
         
-        #### 🔄 H5. 시뮬레이션 (진행중)
+        #### ✅ H5. 시뮬레이션 (완료)
         - Round Robin 분배 알고리즘
         - 팀원별 업무량 및 일정 계산
         - 시뮬레이션 결과 분석
+        
+        #### ✅ H6. 결과 시각화 (완료)
+        - 팀원별 업무량 Bar Chart
+        - 프로젝트 간트 차트
+        - 불균형 지표 시각화
+        
+        #### ✅ H7. Export & 품질 보강 (완료)
+        - CSV/Excel 결과 Export
+        - 기본 에러 처리 및 유효성 검증
+        - 데이터 무결성 보장
         """)
     
     with col2:
@@ -69,10 +79,10 @@ def render_welcome_page():
         - ✅ H2: 팀원 입력 완료
         - ✅ H3: 업무 입력 완료
         - ✅ H4: 업무 관리 완료
-        - 🔄 H5: 시뮬레이션 (현재)
-        - ⏳ H6: 결과 시각화
-        - ⏳ H7: 데이터 내보내기
-        - ⏳ H8: 최종 완성
+        - ✅ H5: 시뮬레이션 완료
+        - ✅ H6: 결과 시각화 완료
+        - ✅ H7: Export & 품질 보강 완료
+        - ⏳ H8: 최종 완성 및 배포
         """)
     
     # 시스템 상태 확인
@@ -87,7 +97,7 @@ def render_project_main_page():
     st.success("🎉 프로젝트가 선택되었습니다!")
     
     # 진행 상황 표시
-    ProgressIndicator.render("H5")
+    ProgressIndicator.render("H7")
     
     # 현재 프로젝트 정보
     project_info = get_project_by_id(st.session_state.current_project_id)
@@ -156,21 +166,24 @@ def render_project_main_page():
         st.markdown("---")
         SimulationVisualization.render()
         st.markdown("---")
+        SimulationExport.render()
+        st.markdown("---")
         SimulationAnalysis.render()
     
     st.markdown("---")
     
     # 다음 단계 안내
     st.info("""
-    ### 🎯 H5 단계 진행중: 시뮬레이션 로직
-    - ✅ Round Robin 분배 알고리즘 구현
-    - ✅ 팀원별 총 소요시간, 예상 일정 계산
-    - ✅ 시뮬레이션 결과 분석 및 권장사항
+    ### 🎉 H7 단계 완료: Export & 품질 보강
+    - ✅ CSV/Excel 결과 Export 기능
+    - ✅ 시뮬레이션 실행 전 데이터 유효성 검증
+    - ✅ 에러 처리 및 사용자 친화적 오류 메시지
+    - ✅ 통합 분석 리포트 다운로드
     
-    ### 📊 다음 단계 예정: H6 결과 시각화
-    - 간트 차트 시각화
-    - 팀원별 업무량 차트
-    - 프로젝트 타임라인 그래프
+    ### 🚀 다음 단계 예정: H8 최종 완성
+    - 실제 날짜 기반 간트 차트
+    - 성능 최적화 및 안정성 개선
+    - 사용자 매뉴얼 및 배포 준비
     """)
     
     # 개발 도구

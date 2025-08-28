@@ -4,7 +4,7 @@ from .project_components import ProjectSelector, ProjectInfo
 from .team_components import TeamMemberForm, TeamMemberList
 from .task_components import TaskForm, TaskList
 from .system_components import SystemStatus, DevelopmentTools, ProgressIndicator
-from .simulation_components import SimulationRunner, SimulationResults, SimulationAnalysis, SimulationVisualization
+from .simulation_components import SimulationRunner, SimulationResults, SimulationAnalysis, SimulationVisualization, SimulationExport
 from .sprint_components import SprintForm, SprintList, SprintTaskDistribution
 
 __all__ = [
@@ -12,6 +12,6 @@ __all__ = [
     'TeamMemberForm', 'TeamMemberList', 
     'TaskForm', 'TaskList',
     'SystemStatus', 'DevelopmentTools', 'ProgressIndicator',
-    'SimulationRunner', 'SimulationResults', 'SimulationAnalysis', 'SimulationVisualization',
+    'SimulationRunner', 'SimulationResults', 'SimulationAnalysis', 'SimulationVisualization', 'SimulationExport',
     'SprintForm', 'SprintList', 'SprintTaskDistribution'
 ]

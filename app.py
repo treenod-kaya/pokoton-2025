@@ -29,7 +29,7 @@ def main():
     """메인 애플리케이션 함수"""
     
     # 메인 제목
-    st.title("📋 포코톤 - 일정 관리 시뮬레이션 (H6 결과 시각화 완성)")
+    st.title("📋 포코톤 - 일정 관리 시뮬레이션 (H7 Export & 품질 보강 완성)")
     st.markdown("### 🚀 Streamlit + SQLite 기반 프로젝트 관리 시스템")
     
     try:

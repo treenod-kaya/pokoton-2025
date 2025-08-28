@@ -5,8 +5,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from datetime import datetime
+import io
 from simulation import run_simulation, get_simulation_summary
 from database import get_project_summary
+from utils import DataValidator, ErrorHandler
 
 class SimulationRunner:
     """시뮬레이션 실행 컴포넌트"""
@@ -43,14 +46,30 @@ class SimulationRunner:
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
             if st.button("🚀 Round Robin 시뮬레이션 실행", type="primary"):
+                # 시뮬레이션 실행 전 유효성 검증
+                validation_result = DataValidator.validate_simulation_requirements(st.session_state.current_project_id)
+                
+                # 오류가 있으면 실행 중단
+                if not validation_result["valid"]:
+                    for error in validation_result["errors"]:
+                        st.error(f"❌ {error}")
+                    return
+                
+                # 경고사항 표시
+                for warning in validation_result["warnings"]:
+                    st.warning(f"⚠️ {warning}")
+                
                 try:
                     with st.spinner("시뮬레이션을 실행 중입니다..."):
                         result = run_simulation(st.session_state.current_project_id)
                         st.session_state.simulation_result = result
                         st.success("✅ 시뮬레이션이 완료되었습니다!")
+                        
+                        # 결과 요약 표시
+                        st.info(f"📊 {validation_result['team_count']}명의 팀원에게 {validation_result['task_count']}개의 업무를 분배했습니다.")
                         st.rerun()
                 except Exception as e:
-                    st.error(f"❌ 시뮬레이션 실행 중 오류가 발생했습니다: {str(e)}")
+                    ErrorHandler.handle_simulation_error(e)
 
 class SimulationResults:
     """시뮬레이션 결과 표시 컴포넌트"""
@@ -542,3 +561,253 @@ class SimulationVisualization:
         
         for result_text in analysis_results:
             st.markdown(result_text)
+
+class SimulationExport:
+    """H7. 결과 Export 컴포넌트"""
+    
+    @staticmethod
+    def render():
+        """시뮬레이션 결과 Export 기능"""
+        if 'simulation_result' not in st.session_state:
+            st.info("📊 시뮬레이션을 먼저 실행해주세요.")
+            return
+        
+        result = st.session_state.simulation_result
+        summary = get_simulation_summary(result)
+        
+        st.header("📤 H7. 결과 Export")
+        
+        # Export 옵션
+        export_tab1, export_tab2, export_tab3 = st.tabs(["📊 요약 리포트", "📋 상세 데이터", "📈 분석 결과"])
+        
+        with export_tab1:
+            SimulationExport._render_summary_export(result, summary)
+        
+        with export_tab2:
+            SimulationExport._render_detailed_export(result)
+        
+        with export_tab3:
+            SimulationExport._render_analysis_export(result)
+    
+    @staticmethod
+    def _render_summary_export(result, summary):
+        """요약 리포트 Export"""
+        st.subheader("📊 프로젝트 요약 리포트")
+        
+        # 요약 정보 표시
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("총 업무 수", f"{result.total_tasks}개")
+        with col2:
+            st.metric("총 예상시간", f"{result.total_estimated_hours:.1f}h")
+        with col3:
+            st.metric("예상 완료일", f"{result.estimated_completion_days}일")
+        
+        # 요약 리포트 데이터 생성
+        summary_data = {
+            "항목": [
+                "프로젝트 ID",
+                "총 업무 수", 
+                "총 예상시간",
+                "팀원 수",
+                "예상 완료일",
+                "평균 활용률",
+                "시뮬레이션 실행일시"
+            ],
+            "값": [
+                result.project_id,
+                f"{result.total_tasks}개",
+                f"{result.total_estimated_hours:.1f}h",
+                f"{summary['team_count']}명",
+                f"{result.estimated_completion_days}일",
+                f"{summary['average_utilization']}%",
+                summary['created_at']
+            ]
+        }
+        
+        summary_df = pd.DataFrame(summary_data)
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        
+        # Export 버튼
+        csv_summary = summary_df.to_csv(index=False, encoding='utf-8-sig')
+        st.download_button(
+            label="📥 요약 리포트 다운로드 (CSV)",
+            data=csv_summary,
+            file_name=f"project_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            key="download_summary"
+        )
+    
+    @staticmethod
+    def _render_detailed_export(result):
+        """상세 데이터 Export"""
+        st.subheader("📋 상세 업무 할당 데이터")
+        
+        # 팀원별 워크로드 데이터
+        st.markdown("#### 👥 팀원별 워크로드")
+        workload_data = []
+        for workload in result.team_workloads:
+            workload_data.append({
+                "팀원명": workload.member_name,
+                "역할": workload.role,
+                "일일가용시간": workload.daily_capacity,
+                "총할당시간": workload.total_assigned_hours,
+                "할당업무수": len(workload.assigned_tasks),
+                "예상소요일": workload.estimated_days,
+                "활용률": f"{workload.utilization_rate:.1f}%"
+            })
+        
+        workload_df = pd.DataFrame(workload_data)
+        st.dataframe(workload_df, use_container_width=True, hide_index=True)
+        
+        # 업무 할당 상세 데이터
+        st.markdown("#### 📝 업무 할당 상세")
+        assignment_data = []
+        for assignment in result.round_robin_assignments:
+            assignment_data.append({
+                "업무ID": assignment.task_id,
+                "업무명": assignment.task_name,
+                "담당자": assignment.assignee_name,
+                "스프린트": assignment.sprint_name,
+                "우선순위": assignment.priority,
+                "예상시간": assignment.estimated_hours,
+                "시작일차": assignment.start_day,
+                "종료일차": assignment.end_day,
+                "소요일수": assignment.end_day - assignment.start_day + 1
+            })
+        
+        assignment_df = pd.DataFrame(assignment_data)
+        st.dataframe(assignment_df, use_container_width=True, hide_index=True)
+        
+        # Export 버튼들
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            csv_workload = workload_df.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="📥 팀원별 워크로드 다운로드 (CSV)",
+                data=csv_workload,
+                file_name=f"team_workload_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                key="download_workload"
+            )
+        
+        with col2:
+            csv_assignment = assignment_df.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="📥 업무 할당 상세 다운로드 (CSV)",
+                data=csv_assignment,
+                file_name=f"task_assignments_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                key="download_assignments"
+            )
+    
+    @staticmethod
+    def _render_analysis_export(result):
+        """분석 결과 Export"""
+        st.subheader("📈 시뮬레이션 분석 결과")
+        
+        # 스프린트별 분석 데이터
+        if result.sprint_workloads:
+            st.markdown("#### 🚀 스프린트별 분석")
+            sprint_data = []
+            for sprint in result.sprint_workloads:
+                sprint_data.append({
+                    "스프린트명": sprint.sprint_name,
+                    "시작일": sprint.sprint_start_date,
+                    "종료일": sprint.sprint_end_date,
+                    "총업무수": sprint.total_tasks,
+                    "총예상시간": f"{sprint.total_hours:.1f}h",
+                    "할당된업무": len(sprint.assignments)
+                })
+            
+            sprint_df = pd.DataFrame(sprint_data)
+            st.dataframe(sprint_df, use_container_width=True, hide_index=True)
+            
+            csv_sprint = sprint_df.to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="📥 스프린트별 분석 다운로드 (CSV)",
+                data=csv_sprint,
+                file_name=f"sprint_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                key="download_sprint"
+            )
+        
+        # 불균형 지표 데이터
+        st.markdown("#### ⚖️ 불균형 지표")
+        balance_data = []
+        
+        # 팀원별 활용률 및 편차 계산
+        workload_hours = [w.total_assigned_hours for w in result.team_workloads]
+        if workload_hours:
+            avg_hours = sum(workload_hours) / len(workload_hours)
+            max_hours = max(workload_hours)
+            min_hours = min(workload_hours)
+            balance_ratio = (min_hours / max_hours * 100) if max_hours > 0 else 0
+            
+            for workload in result.team_workloads:
+                deviation = workload.total_assigned_hours - avg_hours
+                balance_data.append({
+                    "팀원명": workload.member_name,
+                    "활용률": f"{workload.utilization_rate:.1f}%",
+                    "할당시간": f"{workload.total_assigned_hours:.1f}h",
+                    "평균대비편차": f"{deviation:.1f}h",
+                    "상태": "과부하" if workload.utilization_rate > 100 else "저활용" if workload.utilization_rate < 50 else "적정"
+                })
+            
+            # 전체 균형도 정보 추가
+            balance_data.append({
+                "팀원명": "=== 전체 지표 ===",
+                "활용률": f"{sum(w.utilization_rate for w in result.team_workloads) / len(result.team_workloads):.1f}%",
+                "할당시간": f"{sum(workload_hours):.1f}h",
+                "평균대비편차": f"{balance_ratio:.1f}%",
+                "상태": "균형도"
+            })
+        
+        balance_df = pd.DataFrame(balance_data)
+        st.dataframe(balance_df, use_container_width=True, hide_index=True)
+        
+        csv_balance = balance_df.to_csv(index=False, encoding='utf-8-sig')
+        st.download_button(
+            label="📥 불균형 지표 다운로드 (CSV)",
+            data=csv_balance,
+            file_name=f"balance_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            key="download_balance"
+        )
+        
+        # 전체 데이터 통합 Export
+        st.markdown("---")
+        st.markdown("#### 📦 통합 데이터 Export")
+        
+        if st.button("📋 전체 데이터 통합 생성", type="primary"):
+            # 모든 데이터를 하나의 Excel 파일로 생성
+            output = io.BytesIO()
+            
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                # 각 시트별로 데이터 저장
+                pd.DataFrame([{
+                    "프로젝트ID": result.project_id,
+                    "총업무수": result.total_tasks,
+                    "총예상시간": result.total_estimated_hours,
+                    "예상완료일": result.estimated_completion_days,
+                    "시뮬레이션일시": result.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                }]).to_excel(writer, sheet_name='프로젝트요약', index=False)
+                
+                pd.DataFrame(workload_data).to_excel(writer, sheet_name='팀원워크로드', index=False)
+                pd.DataFrame(assignment_data).to_excel(writer, sheet_name='업무할당', index=False)
+                
+                if result.sprint_workloads:
+                    pd.DataFrame(sprint_data).to_excel(writer, sheet_name='스프린트분석', index=False)
+                
+                pd.DataFrame(balance_data).to_excel(writer, sheet_name='불균형지표', index=False)
+            
+            output.seek(0)
+            
+            st.download_button(
+                label="📥 통합 분석 리포트 다운로드 (Excel)",
+                data=output.getvalue(),
+                file_name=f"simulation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_excel"
+            )
