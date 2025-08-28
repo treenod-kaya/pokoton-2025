@@ -5,7 +5,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 from simulation import run_simulation, get_simulation_summary
 from database import get_project_summary
@@ -379,18 +379,30 @@ class SimulationVisualization:
             st.warning("표시할 업무 할당 정보가 없습니다.")
             return
         
-        # 간트 차트 데이터 준비
+        # 간트 차트 데이터 준비 (실제 날짜 기반)
         gantt_data = []
         
         for assignment in result.round_robin_assignments:
+            # 실제 날짜가 있으면 사용, 없으면 일차 기반
+            if assignment.start_date and assignment.end_date:
+                start_val = assignment.start_date
+                finish_val = assignment.end_date
+                duration_calc = (datetime.strptime(assignment.end_date, '%Y-%m-%d') - 
+                               datetime.strptime(assignment.start_date, '%Y-%m-%d')).days + 1
+            else:
+                start_val = assignment.start_day
+                finish_val = assignment.end_day
+                duration_calc = assignment.end_day - assignment.start_day + 1
+                
             gantt_data.append({
                 'Task': f"{assignment.task_name}",
-                'Start': assignment.start_day,
-                'Finish': assignment.end_day,
+                'Start': start_val,
+                'Finish': finish_val,
                 'Resource': assignment.assignee_name,
-                'Duration': assignment.end_day - assignment.start_day + 1,
+                'Duration': duration_calc,
                 'Hours': assignment.estimated_hours,
-                'Sprint': assignment.sprint_name if assignment.sprint_name else "미분류"
+                'Sprint': assignment.sprint_name if assignment.sprint_name else "미분류",
+                'Priority': assignment.priority
             })
         
         df_gantt = pd.DataFrame(gantt_data)
@@ -408,20 +420,26 @@ class SimulationVisualization:
                 if len(sprint_df) == 0:
                     continue
                 
+                # 날짜 타입 확인해서 라벨 설정
+                is_date_based = any('-' in str(val) for val in sprint_df['Start'].values if val is not None)
+                
                 fig = px.timeline(
                     sprint_df,
                     x_start='Start',
                     x_end='Finish', 
                     y='Task',
                     color='Resource',
-                    title=f"📋 {sprint_workload.sprint_name} 간트 차트",
-                    labels={'Start': '시작일차', 'Finish': '종료일차'},
-                    hover_data=['Hours', 'Duration']
+                    title=f"📋 {sprint_workload.sprint_name} - 스프린트 간트 차트",
+                    labels={
+                        'Start': '시작일' if is_date_based else '시작일차', 
+                        'Finish': '종료일' if is_date_based else '종료일차'
+                    },
+                    hover_data=['Hours', 'Duration', 'Priority']
                 )
                 
                 fig.update_layout(
                     height=max(400, len(sprint_df) * 30 + 200),
-                    xaxis_title="일차",
+                    xaxis_title="날짜" if is_date_based else "일차",
                     yaxis_title="업무"
                 )
                 
@@ -430,24 +448,78 @@ class SimulationVisualization:
         # 전체 프로젝트 간트 차트
         st.markdown("#### 📊 전체 프로젝트 타임라인")
         
+        # 전체 데이터에서도 날짜 타입 확인
+        is_all_date_based = any('-' in str(val) for val in df_gantt['Start'].values if val is not None)
+        
         fig_all = px.timeline(
             df_gantt,
             x_start='Start',
             x_end='Finish',
             y='Task', 
             color='Resource',
-            title="전체 프로젝트 간트 차트",
-            labels={'Start': '시작일차', 'Finish': '종료일차'},
-            hover_data=['Hours', 'Duration', 'Sprint']
+            title="전체 프로젝트 간트 차트 (실제 날짜 기반)" if is_all_date_based else "전체 프로젝트 간트 차트",
+            labels={
+                'Start': '시작일' if is_all_date_based else '시작일차', 
+                'Finish': '종료일' if is_all_date_based else '종료일차'
+            },
+            hover_data=['Hours', 'Duration', 'Sprint', 'Priority']
         )
         
         fig_all.update_layout(
             height=max(500, len(df_gantt) * 25 + 200),
-            xaxis_title="일차",
+            xaxis_title="날짜" if is_all_date_based else "일차",
             yaxis_title="업무"
         )
         
         st.plotly_chart(fig_all, use_container_width=True)
+        
+        # 캘린더 뷰 (실제 날짜 기반인 경우에만)
+        if is_all_date_based:
+            st.markdown("#### 📅 캘린더 뷰")
+            
+            # 날짜별 업무 그룹화
+            calendar_data = []
+            for _, row in df_gantt.iterrows():
+                start_date = datetime.strptime(row['Start'], '%Y-%m-%d')
+                end_date = datetime.strptime(row['Finish'], '%Y-%m-%d')
+                
+                # 업무 기간 동안 각 날짜별로 데이터 생성
+                current_date = start_date
+                while current_date <= end_date:
+                    calendar_data.append({
+                        'Date': current_date.strftime('%Y-%m-%d'),
+                        'Task': row['Task'],
+                        'Resource': row['Resource'],
+                        'Sprint': row['Sprint'],
+                        'Hours': row['Hours'] / row['Duration'],  # 일일 시간으로 분할
+                        'WeekDay': current_date.strftime('%A'),
+                        'Month': current_date.strftime('%B %Y')
+                    })
+                    current_date += timedelta(days=1)
+            
+            if calendar_data:
+                cal_df = pd.DataFrame(calendar_data)
+                
+                # 날짜별 팀원 업무량 히트맵
+                pivot_data = cal_df.groupby(['Date', 'Resource'])['Hours'].sum().reset_index()
+                pivot_table = pivot_data.pivot(index='Resource', columns='Date', values='Hours').fillna(0)
+                
+                fig_heatmap = go.Figure(data=go.Heatmap(
+                    z=pivot_table.values,
+                    x=pivot_table.columns,
+                    y=pivot_table.index,
+                    colorscale='RdYlBu_r',
+                    hovertemplate='<b>%{y}</b><br>날짜: %{x}<br>업무량: %{z:.1f}시간<extra></extra>'
+                ))
+                
+                fig_heatmap.update_layout(
+                    title="📅 팀원별 일일 업무량 캘린더",
+                    xaxis_title="날짜",
+                    yaxis_title="팀원",
+                    height=max(300, len(pivot_table.index) * 50)
+                )
+                
+                st.plotly_chart(fig_heatmap, use_container_width=True)
     
     @staticmethod
     def _render_imbalance_indicators(result):

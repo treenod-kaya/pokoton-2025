@@ -2,8 +2,9 @@
 
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import math
+import random
 from database import get_team_members, get_tasks, get_sprints
 
 @dataclass
@@ -16,6 +17,8 @@ class TaskAssignment:
     priority: int
     start_day: int
     end_day: int
+    start_date: Optional[str] = None  # 실제 시작 날짜
+    end_date: Optional[str] = None    # 실제 종료 날짜
     sprint_name: str = ""
     build_type: str = ""
     
@@ -82,6 +85,8 @@ class RoundRobinSimulator:
             
             # 3. Round Robin 방식으로 업무 분배
             sprint_assignments = self._distribute_tasks_round_robin(sorted_tasks, sprint_name)
+            # 4. 실제 날짜 계산 및 할당
+            sprint_assignments = self._calculate_real_dates(sprint_assignments, sprint_name)
             all_assignments.extend(sprint_assignments)
             
             # 스프린트별 워크로드 계산
@@ -210,6 +215,33 @@ class RoundRobinSimulator:
             workloads.append(workload)
         
         return workloads
+    
+    def _calculate_real_dates(self, assignments: List[TaskAssignment], sprint_name: str) -> List[TaskAssignment]:
+        """일차를 실제 날짜로 변환 (스프린트 기준)"""
+        # 해당 스프린트 정보 찾기
+        sprint_info = next((s for s in self.sprints if s['name'] == sprint_name), None)
+        
+        if not sprint_info or not sprint_info.get('start_date'):
+            # 스프린트 정보가 없으면 오늘부터 시작
+            base_date = date.today()
+        else:
+            # 스프린트 시작일 파싱
+            try:
+                base_date = datetime.strptime(sprint_info['start_date'], '%Y-%m-%d').date()
+            except:
+                base_date = date.today()
+        
+        # 각 할당에 실제 날짜 계산
+        for assignment in assignments:
+            # 시작 날짜: 스프린트 시작일 + (start_day - 1)일
+            start_date = base_date + timedelta(days=assignment.start_day - 1)
+            # 종료 날짜: 스프린트 시작일 + (end_day - 1)일  
+            end_date = base_date + timedelta(days=assignment.end_day - 1)
+            
+            assignment.start_date = start_date.strftime('%Y-%m-%d')
+            assignment.end_date = end_date.strftime('%Y-%m-%d')
+        
+        return assignments
     
     def _calculate_project_timeline(self, team_workloads: List[TeamMemberWorkload]) -> int:
         """전체 프로젝트 완료 예상일 계산"""
