@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from simulation import run_simulation
 from database import get_project_summary, get_sprints
-from utils import DataValidator, ErrorHandler
+from utils.validation import DataValidator, ErrorHandler
 from utils.calendar_utils import KoreanHolidayCalendar
 
 class TaskDistributionSimulator:
@@ -124,15 +124,25 @@ class TaskDistributionViewer:
         # 업무 할당 정보 수집
         for assignment in result.round_robin_assignments:
             if assignment.start_date and assignment.end_date:
+                # 1일 업무의 경우 종료일을 하루 뒤로 설정하여 막대로 표시
+                start_date = assignment.start_date
+                finish_date = assignment.end_date
+                
+                if start_date == finish_date:
+                    # 1일 업무는 다음날까지로 표시하여 막대가 보이도록 함
+                    finish_datetime = datetime.strptime(finish_date, '%Y-%m-%d') + timedelta(days=1)
+                    finish_date = finish_datetime.strftime('%Y-%m-%d')
+                
                 task_data.append({
                     'Task': f"{assignment.task_name} ({assignment.assignee_name})",
-                    'Start': assignment.start_date,
-                    'Finish': assignment.end_date,
+                    'Start': start_date,
+                    'Finish': finish_date,
                     'Type': 'Task',
                     'Sprint': assignment.sprint_name,
                     'Assignee': assignment.assignee_name,
                     'Priority': assignment.priority,
-                    'Hours': assignment.estimated_hours
+                    'Hours': assignment.estimated_hours,
+                    'OriginalFinish': assignment.end_date  # 원래 종료일 보관
                 })
         
         # 전체 타임라인 차트
@@ -167,36 +177,95 @@ class TaskDistributionViewer:
                     borderwidth=1
                 )
             
+            # 담당자별 색상 매핑 (전체 프로젝트용)
+            distinct_colors = [
+                '#FF6B6B',  # 빨간색
+                '#4ECDC4',  # 청록색
+                '#45B7D1',  # 파란색
+                '#96CEB4',  # 연두색
+                '#FFEAA7',  # 노란색
+                '#DDA0DD',  # 자주색
+                '#98D8C8',  # 민트색
+                '#F7DC6F',  # 황금색
+                '#BB8FCE',  # 라벤더
+                '#85C1E9'   # 하늘색
+            ]
+            
+            unique_assignees = list(set(task['Assignee'] for task in task_data))
+            color_map = {assignee: distinct_colors[i % len(distinct_colors)] 
+                        for i, assignee in enumerate(unique_assignees)}
+            
+            # 중복 범례 방지를 위한 담당자 추적
+            legend_shown = set()
+            
             # 업무 타임라인 추가
             for i, task in enumerate(task_data):
+                show_legend = task['Assignee'] not in legend_shown
+                if show_legend:
+                    legend_shown.add(task['Assignee'])
+                
                 fig.add_trace(go.Scatter(
                     x=[task['Start'], task['Finish']],
                     y=[i, i],
                     mode='lines+markers',
                     name=task['Assignee'],
-                    line=dict(width=8),
+                    line=dict(
+                        width=10,
+                        color=color_map[task['Assignee']]
+                    ),
+                    marker=dict(
+                        size=8,
+                        color=color_map[task['Assignee']],
+                        line=dict(width=2, color='white')
+                    ),
                     hovertemplate=(
                         f"<b>{task['Task']}</b><br>"
-                        f"담당자: {task['Assignee']}<br>"
-                        f"스프린트: {task['Sprint']}<br>"
-                        f"기간: {task['Start']} ~ {task['Finish']}<br>"
-                        f"우선순위: {task['Priority']}<br>"
-                        f"예상시간: {task['Hours']:.1f}h"
+                        f"👤 담당자: {task['Assignee']}<br>"
+                        f"🚀 스프린트: {task['Sprint']}<br>"
+                        f"📅 기간: {'1일 업무' if task['Start'] == task['OriginalFinish'] else task['Start'] + ' ~ ' + task['OriginalFinish']}<br>"
+                        f"⭐ 우선순위: P{task['Priority']}<br>"
+                        f"⏱️ 예상시간: {task['Hours']:.1f}h"
                         "<extra></extra>"
-                    )
+                    ),
+                    showlegend=show_legend,
+                    legendgroup=task['Assignee']
                 ))
             
             fig.update_layout(
-                title="🗓️ 스프린트 기반 전체 프로젝트 타임라인",
-                xaxis_title="날짜",
-                yaxis_title="업무",
-                height=max(400, len(task_data) * 30 + 200),
+                title=dict(
+                    text="🗓️ 스프린트 기반 전체 프로젝트 타임라인",
+                    font=dict(size=18),
+                    x=0.5
+                ),
+                xaxis_title="📅 날짜",
+                yaxis_title="📋 업무",
+                height=max(450, len(task_data) * 35 + 250),
                 showlegend=True,
+                legend=dict(
+                    title="👥 담당자",
+                    orientation="v",
+                    yanchor="top",
+                    y=1,
+                    xanchor="left",
+                    x=1.02,
+                    bgcolor="rgba(255,255,255,0.8)",
+                    bordercolor="rgba(0,0,0,0.2)",
+                    borderwidth=1
+                ),
                 yaxis=dict(
                     tickmode='array',
                     tickvals=list(range(len(task_data))),
-                    ticktext=[task['Task'] for task in task_data]
-                )
+                    ticktext=[f"{task['Task'][:30]}..." if len(task['Task']) > 30 else task['Task'] for task in task_data],
+                    tickfont=dict(size=11)
+                ),
+                xaxis=dict(
+                    tickfont=dict(size=11),
+                    gridcolor='rgba(0,0,0,0.1)'
+                ),
+                plot_bgcolor='rgba(248,249,250,0.8)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(size=12),
+                hovermode='closest'
             )
             
             st.plotly_chart(fig, use_container_width=True)
@@ -375,16 +444,45 @@ class TaskDistributionViewer:
                 
                 task_data = []
                 for assignment in sprint_tasks:
+                    # 1일 업무의 경우 종료일을 하루 뒤로 설정하여 막대로 표시
+                    start_date = assignment.start_date
+                    finish_date = assignment.end_date
+                    
+                    if start_date == finish_date:
+                        # 1일 업무는 다음날까지로 표시하여 막대가 보이도록 함
+                        finish_datetime = datetime.strptime(finish_date, '%Y-%m-%d') + timedelta(days=1)
+                        finish_date = finish_datetime.strftime('%Y-%m-%d')
+                    
                     task_data.append({
                         'Task': assignment.task_name,
-                        'Start': assignment.start_date,
-                        'Finish': assignment.end_date,
+                        'Start': start_date,
+                        'Finish': finish_date,
                         'Assignee': assignment.assignee_name,
                         'Priority': assignment.priority,
-                        'Hours': assignment.estimated_hours
+                        'Hours': assignment.estimated_hours,
+                        'OriginalFinish': assignment.end_date  # 원래 종료일 보관
                     })
                 
                 df_sprint = pd.DataFrame(task_data)
+                
+                # 명시적인 색상 팔레트 정의
+                distinct_colors = [
+                    '#FF6B6B',  # 빨간색
+                    '#4ECDC4',  # 청록색
+                    '#45B7D1',  # 파란색
+                    '#96CEB4',  # 연두색
+                    '#FFEAA7',  # 노란색
+                    '#DDA0DD',  # 자주색
+                    '#98D8C8',  # 민트색
+                    '#F7DC6F',  # 황금색
+                    '#BB8FCE',  # 라벤더
+                    '#85C1E9'   # 하늘색
+                ]
+                
+                # 담당자별 색상 매핑
+                unique_assignees = df_sprint['Assignee'].unique()
+                color_map = {assignee: distinct_colors[i % len(distinct_colors)] 
+                           for i, assignee in enumerate(unique_assignees)}
                 
                 fig = px.timeline(
                     df_sprint,
@@ -392,14 +490,57 @@ class TaskDistributionViewer:
                     x_end='Finish',
                     y='Task',
                     color='Assignee',
-                    title=f"{sprint_workload.sprint_name} 업무 타임라인 (검증용)",
-                    hover_data=['Priority', 'Hours']
+                    title=f"📊 {sprint_workload.sprint_name} 업무 타임라인",
+                    hover_data={'Priority': True, 'Hours': ':.1f'},
+                    color_discrete_map=color_map
                 )
                 
+                # 호버 템플릿 커스터마이징 (실제 종료일 표시)
+                for i, trace in enumerate(fig.data):
+                    original_finish = task_data[i]['OriginalFinish']
+                    task_name = task_data[i]['Task']
+                    assignee = task_data[i]['Assignee']
+                    start_date = task_data[i]['Start']
+                    priority = task_data[i]['Priority']
+                    hours = task_data[i]['Hours']
+                    
+                    # 1일 업무인지 확인
+                    is_one_day = start_date == original_finish
+                    duration_text = "1일 업무" if is_one_day else f"{start_date} ~ {original_finish}"
+                    
+                    trace.hovertemplate = (
+                        f"<b>{task_name}</b><br>"
+                        f"👤 담당자: {assignee}<br>"
+                        f"📅 기간: {duration_text}<br>"
+                        f"⭐ 우선순위: P{priority}<br>"
+                        f"⏱️ 예상시간: {hours:.1f}h"
+                        "<extra></extra>"
+                    )
+                
+                # 레이아웃 개선
                 fig.update_layout(
-                    height=max(300, len(task_data) * 40 + 100),
-                    xaxis_title="날짜",
-                    yaxis_title="업무"
+                    height=max(350, len(task_data) * 45 + 120),
+                    xaxis_title="📅 날짜",
+                    yaxis_title="📋 업무",
+                    font=dict(size=12),
+                    title_font_size=16,
+                    legend=dict(
+                        title="👥 담당자",
+                        orientation="h",
+                        yanchor="bottom",
+                        y=1.02,
+                        xanchor="right",
+                        x=1
+                    ),
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)'
+                )
+                
+                # 막대 스타일 개선
+                fig.update_traces(
+                    marker_line_width=1,
+                    marker_line_color="white",
+                    opacity=0.8
                 )
                 
                 st.plotly_chart(fig, use_container_width=True)
