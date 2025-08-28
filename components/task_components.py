@@ -148,12 +148,16 @@ class TaskForm:
                 else:
                     default_story_points = 1
                 
-                story_points_leader = st.number_input(
-                    "스토리 포인트", 
-                    min_value=min(fibonacci_options), 
-                    max_value=max(fibonacci_options), 
-                    value=default_story_points, 
-                    step=1, 
+                # 피보나치 수열 드롭다운
+                try:
+                    default_index = fibonacci_options.index(default_story_points)
+                except ValueError:
+                    default_index = 0
+                
+                story_points_leader = st.selectbox(
+                    "스토리 포인트",
+                    options=fibonacci_options,
+                    index=default_index,
                     key=f"{form_key_prefix}task_story_points",
                     help="피보나치 수열: 1, 2, 3, 5, 8, 13, 21"
                 )
