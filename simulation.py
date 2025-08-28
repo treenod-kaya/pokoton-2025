@@ -63,9 +63,29 @@ class RoundRobinSimulator:
     
     def __init__(self, project_id: int):
         self.project_id = project_id
-        self.team_members = get_team_members(project_id)
+        self.all_team_members = get_team_members(project_id)
         self.tasks = get_tasks(project_id)
         self.sprints = get_sprints(project_id)
+        
+        # 실제 업무가 할당된 팀원들만 추출
+        self.team_members = self._get_assigned_team_members()
+    
+    def _get_assigned_team_members(self) -> List[Dict]:
+        """업무에 실제로 할당된 팀원들만 반환"""
+        # 업무에서 사용된 담당자 이름들 추출
+        assigned_names = set()
+        for task in self.tasks:
+            assignee = task.get('assignee', '').strip()
+            if assignee and assignee != '미지정':
+                assigned_names.add(assignee)
+        
+        # 해당 이름의 팀원들만 필터링
+        assigned_members = []
+        for member in self.all_team_members:
+            if member['name'] in assigned_names:
+                assigned_members.append(member)
+        
+        return assigned_members
     
     def simulate(self) -> SimulationResult:
         """메인 시뮬레이션 실행"""
@@ -152,8 +172,26 @@ class RoundRobinSimulator:
             member_available_start_day[member['id']] = 1
         
         for task_idx, task in enumerate(sorted_tasks):
-            # 현재 순서의 팀원 선택
-            current_member = self.team_members[member_index % len(self.team_members)]
+            # 기존 담당자가 있는지 확인
+            task_assignee = task.get('assignee', '').strip()
+            
+            if task_assignee and task_assignee != '미지정':
+                # 기존 담당자 찾기
+                current_member = None
+                for member in self.team_members:
+                    if member['name'] == task_assignee:
+                        current_member = member
+                        break
+                
+                if not current_member:
+                    # 담당자가 팀원 목록에 없으면 Round Robin으로 fallback
+                    current_member = self.team_members[member_index % len(self.team_members)]
+                    member_index += 1
+            else:
+                # 담당자가 없으면 Round Robin 방식으로 선택
+                current_member = self.team_members[member_index % len(self.team_members)]
+                member_index += 1
+            
             task_hours = task['final_hours']
             
             # 현재 팀원의 시작일 = 해당 팀원의 현재 가용 시작일
