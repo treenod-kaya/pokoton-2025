@@ -76,7 +76,7 @@ class TeamMemberList:
                     icon_html = ProfileIconGenerator.get_icon_html(
                         member.get('profile_icon_index', 0), 
                         member['name'], 
-                        size=28
+                        size=40
                     )
                     
                     # 간단한 팀원 카드 (다크 모드 호환)
