@@ -5,16 +5,33 @@ from components import (
     SystemStatus, DevelopmentTools, ProgressIndicator,
     TeamMemberForm, TeamMemberList, TaskForm, TaskList,
     SimulationRunner, SimulationResults, SimulationAnalysis, SimulationVisualization, SimulationExport,
-    SprintForm, SprintList, SprintTaskDistribution
+    SprintForm, SprintList, SprintTaskDistribution,
+    DemoGuide, FeatureHighlight
 )
 from database import get_project_by_id
+from demo_data import render_demo_section
 
 def render_welcome_page():
     """환영 페이지 (프로젝트 미선택 시)"""
-    st.info("📁 사이드바에서 프로젝트를 선택하거나 새로 생성해주세요.")
     
-    # 진행 상황 표시
-    ProgressIndicator.render("H7")
+    # 메인 소개 섹션
+    st.markdown("""
+    <div style="text-align: center; padding: 2rem 0;">
+        <h1>🎯 포코톤에 오신 것을 환영합니다!</h1>
+        <h3>AI 기반 프로젝트 일정 관리 및 업무 분배 시뮬레이션 플랫폼</h3>
+        <p style="font-size: 1.2em; color: #666; margin-top: 1rem;">
+            스프린트 중심의 체계적인 업무 관리와 Round Robin 알고리즘을 통한 최적화된 팀원 분배를 경험해보세요.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 시작하기 안내
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.info("📁 **시작하기**: 사이드바에서 프로젝트를 선택하거나 새로 생성해주세요.")
+    
+    # 진행 상황 표시 - H8 완료
+    ProgressIndicator.render("완료")
     
     col1, col2 = st.columns(2)
     
@@ -82,8 +99,17 @@ def render_welcome_page():
         - ✅ H5: 시뮬레이션 완료
         - ✅ H6: 결과 시각화 완료
         - ✅ H7: Export & 품질 보강 완료
-        - ⏳ H8: 최종 완성 및 배포
+        - ✅ H8: 폴리싱 & 데모 준비 완료
         """)
+    
+    # 데모 섹션 추가
+    render_demo_section()
+    
+    # 추가 기능 하이라이트
+    FeatureHighlight.render()
+    
+    # 완전한 데모 가이드
+    DemoGuide.render()
     
     # 시스템 상태 확인
     st.markdown("---")
@@ -172,18 +198,22 @@ def render_project_main_page():
     
     st.markdown("---")
     
-    # 다음 단계 안내
-    st.info("""
-    ### 🎉 H7 단계 완료: Export & 품질 보강
-    - ✅ CSV/Excel 결과 Export 기능
-    - ✅ 시뮬레이션 실행 전 데이터 유효성 검증
-    - ✅ 에러 처리 및 사용자 친화적 오류 메시지
-    - ✅ 통합 분석 리포트 다운로드
+    # 완료 상태 안내
+    st.success("""
+    ### 🎉 모든 개발 단계 완료!
     
-    ### 🚀 다음 단계 예정: H8 최종 완성
-    - 실제 날짜 기반 간트 차트
-    - 성능 최적화 및 안정성 개선
-    - 사용자 매뉴얼 및 배포 준비
+    #### ✅ H8 폴리싱 & 데모 준비 완성
+    - 완전한 데모 가이드 시스템
+    - 샘플 프로젝트 자동 생성
+    - 프레젠테이션용 데모 스크립트
+    - 사용자 친화적 랜딩 페이지
+    
+    ### 🚀 포코톤이 제공하는 완전한 기능
+    - **프로젝트 관리**: 팀원, 업무, 스프린트 통합 관리
+    - **Round Robin 시뮬레이션**: 공정한 자동 업무 분배
+    - **시각화**: Bar Chart, 간트 차트, 균형도 지표
+    - **데이터 Export**: CSV/Excel 통합 리포트
+    - **품질 보장**: 완전한 유효성 검증 시스템
     """)
     
     # 개발 도구

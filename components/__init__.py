@@ -6,6 +6,7 @@ from .task_components import TaskForm, TaskList
 from .system_components import SystemStatus, DevelopmentTools, ProgressIndicator
 from .simulation_components import SimulationRunner, SimulationResults, SimulationAnalysis, SimulationVisualization, SimulationExport
 from .sprint_components import SprintForm, SprintList, SprintTaskDistribution
+from .demo_components import DemoGuide, FeatureHighlight
 
 __all__ = [
     'ProjectSelector', 'ProjectInfo',
@@ -13,5 +14,6 @@ __all__ = [
     'TaskForm', 'TaskList',
     'SystemStatus', 'DevelopmentTools', 'ProgressIndicator',
     'SimulationRunner', 'SimulationResults', 'SimulationAnalysis', 'SimulationVisualization', 'SimulationExport',
-    'SprintForm', 'SprintList', 'SprintTaskDistribution'
+    'SprintForm', 'SprintList', 'SprintTaskDistribution',
+    'DemoGuide', 'FeatureHighlight'
 ]
