@@ -138,23 +138,51 @@ class RoundRobinSimulator:
         return sprint_tasks
     
     def _distribute_tasks_round_robin(self, sorted_tasks: List[Dict], sprint_name: str = "") -> List[TaskAssignment]:
-        """Round Robin 방식으로 업무 분배"""
+        """Round Robin 방식으로 업무 분배 (순차적 시작 방식)"""
         assignments = []
         member_index = 0
-        member_daily_hours = {member['id']: 0.0 for member in self.team_members}
-        member_current_day = {member['id']: 1 for member in self.team_members}
         
-        for task in sorted_tasks:
+        # 팀원별 현재 가용 시작일 추적 (전역적으로 연결된 스케줄)
+        member_available_start_day = {}
+        global_day_counter = 1  # 전체 프로젝트의 진행 일수
+        
+        # 첫 번째 라운드에서 각 팀원의 첫 업무 시작일 설정
+        for i, member in enumerate(self.team_members):
+            if i == 0:
+                # 첫 번째 팀원: 1일차부터 시작
+                member_available_start_day[member['id']] = 1
+            else:
+                # 나머지 팀원들: 아직 시작하지 않음 (None으로 표시)
+                member_available_start_day[member['id']] = None
+        
+        for task_idx, task in enumerate(sorted_tasks):
             # 현재 순서의 팀원 선택
             current_member = self.team_members[member_index % len(self.team_members)]
             task_hours = task['final_hours']
             
-            # 업무 시작일 계산
-            start_day = member_current_day[current_member['id']]
+            # 현재 팀원의 시작일 결정
+            if member_available_start_day[current_member['id']] is None:
+                # 아직 시작하지 않은 팀원: 이전 팀원의 첫 업무 완료 후 시작
+                prev_member_idx = (member_index - 1) % len(self.team_members)
+                prev_member = self.team_members[prev_member_idx]
+                
+                # 이전 팀원의 첫 업무 완료일 찾기
+                prev_first_assignment = next(
+                    (a for a in assignments if a.assignee_name == prev_member['name']), 
+                    None
+                )
+                
+                if prev_first_assignment:
+                    member_available_start_day[current_member['id']] = prev_first_assignment.end_day + 1
+                else:
+                    # 예외 상황: 전역 카운터 사용
+                    member_available_start_day[current_member['id']] = global_day_counter
+            
+            start_day = member_available_start_day[current_member['id']]
             
             # 업무 완료에 필요한 일수 계산
             daily_capacity = current_member['available_hours_per_day']
-            required_days = math.ceil(task_hours / daily_capacity)
+            required_days = max(1, math.ceil(task_hours / daily_capacity))
             end_day = start_day + required_days - 1
             
             # 할당 생성
@@ -173,8 +201,10 @@ class RoundRobinSimulator:
             assignments.append(assignment)
             
             # 팀원의 다음 업무 시작일 업데이트
-            member_current_day[current_member['id']] = end_day + 1
-            member_daily_hours[current_member['id']] += task_hours
+            member_available_start_day[current_member['id']] = end_day + 1
+            
+            # 전역 일수 카운터 업데이트
+            global_day_counter = max(global_day_counter, end_day + 1)
             
             # 다음 팀원으로 순환
             member_index += 1
@@ -235,36 +265,29 @@ class RoundRobinSimulator:
         # 스프린트 시작일을 첫 번째 업무일로 조정
         sprint_start_workday = KoreanHolidayCalendar.get_next_workday(base_date)
         
-        # 팀원별 현재 작업 날짜 추적 (업무일 기준)
+        # Round Robin 순서를 반영한 팀원별 시작일 계산
         member_current_workday = {}
         
-        # 각 할당에 실제 날짜 계산 (업무일 기준)
+        # 팀원 목록을 Round Robin 순서대로 정렬
+        team_member_names = [member['name'] for member in self.team_members]
+        
+        # 각 할당에 실제 날짜 계산 (일차를 실제 날짜로 변환)
         for assignment in assignments:
-            # 팀원별 시작 업무일 계산
-            assignee = assignment.assignee_name
+            # 시작일차를 실제 날짜로 변환 (업무일 기준)
+            task_start_date = KoreanHolidayCalendar.add_workdays(
+                sprint_start_workday, 
+                assignment.start_day - 1  # start_day는 1부터 시작하므로
+            )
             
-            if assignee not in member_current_workday:
-                # 첫 업무면 스프린트 시작 업무일부터
-                member_current_workday[assignee] = sprint_start_workday
-            
-            # 현재 업무의 시작일
-            task_start_date = member_current_workday[assignee]
-            
-            # 업무 완료에 필요한 업무일 수 계산
-            daily_hours = 8.0  # 기본 일일 작업시간
-            required_workdays = max(1, int(assignment.estimated_hours / daily_hours))
-            if assignment.estimated_hours % daily_hours > 0:
-                required_workdays += 1
-            
-            # 종료일 계산 (업무일 기준)
-            task_end_date = KoreanHolidayCalendar.add_workdays(task_start_date, required_workdays - 1)
+            # 종료일차를 실제 날짜로 변환 (업무일 기준)
+            task_end_date = KoreanHolidayCalendar.add_workdays(
+                sprint_start_workday,
+                assignment.end_day - 1  # end_day도 1부터 시작하므로
+            )
             
             # 할당 정보 업데이트
             assignment.start_date = task_start_date.strftime('%Y-%m-%d')
             assignment.end_date = task_end_date.strftime('%Y-%m-%d')
-            
-            # 해당 팀원의 다음 업무 시작일 업데이트
-            member_current_workday[assignee] = KoreanHolidayCalendar.add_workdays(task_end_date, 1)
         
         return assignments
     
