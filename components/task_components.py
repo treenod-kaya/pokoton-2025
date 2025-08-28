@@ -27,9 +27,6 @@ class TaskForm:
         member_options = ["미지정"] + [m["name"] for m in team_members]
         
         with st.container():
-            if not is_edit_mode:
-                st.subheader("새 업무 추가")
-            
             # 첫 번째 행: 기본 정보
             col1, col2, col3 = st.columns(3)
             with col1:
