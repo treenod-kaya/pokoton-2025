@@ -3,7 +3,7 @@
 import streamlit as st
 from components import (
     SystemStatus, DevelopmentTools, ProgressIndicator,
-    TeamMemberForm, TeamMemberList, TaskForm, TaskList
+    TeamMemberForm, TeamMemberList, TaskForm, TaskList, TaskEditForm
 )
 from database import get_project_by_id
 
@@ -92,8 +92,13 @@ def render_project_main_page():
     
     with tab2:
         # H4 단계: 업무 관리
-        TaskForm.render()
-        st.markdown("---")
+        # 업무 수정 모드인지 확인
+        if st.session_state.get('editing_task_id'):
+            TaskEditForm.render()
+            st.markdown("---")
+        else:
+            TaskForm.render()
+            st.markdown("---")
         TaskList.render()
     
     st.markdown("---")

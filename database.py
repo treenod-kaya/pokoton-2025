@@ -195,6 +195,60 @@ def get_tasks(project_id: int) -> List[Dict]:
         "created_at": row[14]
     } for row in rows or []]
 
+def update_task(task_id: int, attribute: str = "", build_type: str = "", part_division: str = "",
+                priority: int = 3, item_name: str = "", content: str = "", assignee: str = "",
+                story_points_leader: int = 0, duration_leader: float = 0.0, duration_assignee: float = 0.0,
+                final_hours: float = 0.0, ai_judgment: str = "", connectivity: str = "") -> bool:
+    """업무 수정"""
+    if not item_name.strip():
+        raise ValueError("업무명(항목)은 필수입니다.")
+    if not (1 <= priority <= 5):
+        raise ValueError("우선순위는 1~5 사이의 값이어야 합니다.")
+    
+    db.execute_query(
+        '''UPDATE tasks SET
+            attribute = ?, build_type = ?, part_division = ?, priority = ?, item_name = ?, content = ?,
+            assignee = ?, story_points_leader = ?, duration_leader = ?, duration_assignee = ?, 
+            final_hours = ?, ai_judgment = ?, connectivity = ?
+           WHERE id = ?''',
+        (attribute, build_type, part_division, priority, item_name.strip(), content,
+         assignee, story_points_leader, duration_leader, duration_assignee, final_hours,
+         ai_judgment, connectivity, task_id)
+    )
+    return True
+
+def get_task_by_id(task_id: int) -> Optional[Dict]:
+    """ID로 업무 조회"""
+    row = db.execute_query(
+        '''SELECT id, attribute, build_type, part_division, priority, item_name, content,
+                  assignee, story_points_leader, duration_leader, duration_assignee, final_hours,
+                  ai_judgment, connectivity, created_at
+           FROM tasks
+           WHERE id = ?''',
+        (task_id,),
+        fetch="one"
+    )
+    
+    if row:
+        return {
+            "id": row[0],
+            "attribute": row[1],
+            "build_type": row[2],
+            "part_division": row[3],
+            "priority": row[4], 
+            "item_name": row[5],
+            "content": row[6],
+            "assignee": row[7],
+            "story_points_leader": row[8],
+            "duration_leader": row[9],
+            "duration_assignee": row[10],
+            "final_hours": row[11],
+            "ai_judgment": row[12],
+            "connectivity": row[13],
+            "created_at": row[14]
+        }
+    return None
+
 def delete_task(task_id: int) -> bool:
     """업무 삭제"""
     db.execute_query(
