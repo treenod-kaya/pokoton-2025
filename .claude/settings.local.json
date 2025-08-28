@@ -55,6 +55,12 @@
       "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
       "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
       "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
+      "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")",
       "Bash(python -c \"from components import TaskDistributionSimulator, TaskDistributionViewer; print(''Import successful!'')\")"
     ],
     "deny": [],

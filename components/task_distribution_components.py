@@ -444,24 +444,64 @@ class TaskDistributionViewer:
                 
                 task_data = []
                 for assignment in sprint_tasks:
-                    # 1일 업무의 경우 종료일을 하루 뒤로 설정하여 막대로 표시
-                    start_date = assignment.start_date
-                    finish_date = assignment.end_date
+                    start_date_obj = datetime.strptime(assignment.start_date, '%Y-%m-%d').date()
+                    end_date_obj = datetime.strptime(assignment.end_date, '%Y-%m-%d').date()
                     
-                    # 모든 업무에 대해 종료일에 1일을 추가하여 정확한 기간 표시
-                    # (Plotly timeline에서는 종료일이 exclusive이므로)
-                    finish_datetime = datetime.strptime(finish_date, '%Y-%m-%d') + timedelta(days=1)
-                    finish_date = finish_datetime.strftime('%Y-%m-%d')
+                    # 업무 기간 내 업무일 구간 찾기
+                    workday_segments = []
+                    current_segment_start = None
+                    current_date = start_date_obj
                     
-                    task_data.append({
-                        'Task': assignment.task_name,
-                        'Start': start_date,
-                        'Finish': finish_date,
-                        'Assignee': assignment.assignee_name,
-                        'Priority': assignment.priority,
-                        'Hours': assignment.estimated_hours,
-                        'OriginalFinish': assignment.end_date  # 원래 종료일 보관
-                    })
+                    while current_date <= end_date_obj:
+                        is_workday = KoreanHolidayCalendar.is_workday(current_date)
+                        
+                        if is_workday:
+                            # 업무일인 경우
+                            if current_segment_start is None:
+                                current_segment_start = current_date
+                        else:
+                            # 공휴일/주말인 경우 - 현재 세그먼트 종료
+                            if current_segment_start is not None:
+                                segment_end = current_date - timedelta(days=1)
+                                workday_segments.append((current_segment_start, segment_end))
+                                current_segment_start = None
+                        
+                        current_date += timedelta(days=1)
+                    
+                    # 마지막 세그먼트 처리
+                    if current_segment_start is not None:
+                        workday_segments.append((current_segment_start, end_date_obj))
+                    
+                    # 각 업무일 세그먼트를 별도 막대로 생성
+                    if workday_segments:
+                        for i, (seg_start, seg_end) in enumerate(workday_segments):
+                            # Plotly timeline용 종료일 +1일 처리
+                            plotly_end = seg_end + timedelta(days=1)
+                            
+                            # Task 이름은 동일하게 유지 (같은 세로축에 표시)
+                            task_data.append({
+                                'Task': assignment.task_name,
+                                'Start': seg_start.strftime('%Y-%m-%d'),
+                                'Finish': plotly_end.strftime('%Y-%m-%d'),
+                                'Assignee': assignment.assignee_name,
+                                'Priority': assignment.priority,
+                                'Hours': assignment.estimated_hours / len(workday_segments),  # 시간 분할
+                                'OriginalFinish': assignment.end_date,  # 원래 종료일 보관
+                                'SegmentInfo': f"{seg_start.strftime('%m/%d')}~{seg_end.strftime('%m/%d')}"
+                            })
+                    else:
+                        # 업무일이 없는 경우 (모두 공휴일) - 원래대로 표시
+                        finish_datetime = datetime.strptime(assignment.end_date, '%Y-%m-%d') + timedelta(days=1)
+                        task_data.append({
+                            'Task': f"{assignment.task_name} (공휴일 기간)",
+                            'Start': assignment.start_date,
+                            'Finish': finish_datetime.strftime('%Y-%m-%d'),
+                            'Assignee': assignment.assignee_name,
+                            'Priority': assignment.priority,
+                            'Hours': assignment.estimated_hours,
+                            'OriginalFinish': assignment.end_date,
+                            'SegmentInfo': "공휴일 기간"
+                        })
                 
                 df_sprint = pd.DataFrame(task_data)
                 
@@ -494,7 +534,7 @@ class TaskDistributionViewer:
                     color_discrete_map=color_map
                 )
                 
-                # 각 trace(담당자별)에 맞는 호버 정보 설정
+                # 간단한 호버 정보
                 for trace in fig.data:
                     assignee_name = trace.name  # trace.name이 담당자명
                     trace.hovertemplate = (
